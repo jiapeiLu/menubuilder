@@ -35,22 +35,70 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         # (按鈕暫時先不加，或先禁用)
 
         # --- 右側: 編輯器 ---
-        right_layout = QtWidgets.QVBoxLayout()
-        right_label = QtWidgets.QLabel("腳本檢視器 & 編輯器 (Inspector & Editor)")
-        
-        # ... 這裡將會是右側的所有輸入框和按鈕 ...
-        # ... 在 Phase 1，我們可以先放一個佔位的 Label ...
-        placeholder_editor = QtWidgets.QLabel("編輯器區域將在後續階段完成")
-        placeholder_editor.setAlignment(QtCore.Qt.AlignCenter)
-        placeholder_editor.setStyleSheet("border: 1px solid gray;")
+        right_widget = QtWidgets.QWidget()
+        right_layout = QtWidgets.QVBoxLayout(right_widget)
 
-        right_layout.addWidget(right_label)
-        right_layout.addWidget(placeholder_editor)
+        # -- Tab Widget for input method --
+        self.input_tabs = QtWidgets.QTabWidget()
+        file_parse_widget = QtWidgets.QWidget()
+        manual_input_widget = QtWidgets.QWidget()
+
+        self.input_tabs.addTab(file_parse_widget, "從檔案解析")
+        self.input_tabs.addTab(manual_input_widget, "手動輸入指令")
+
+        # -- Tab 1: Parse from File Layout --
+        file_parse_layout = QtWidgets.QVBoxLayout(file_parse_widget)
+        # ... (Add browse button and function list here)
+        self.browse_button = QtWidgets.QPushButton("瀏覽腳本檔案...")
+        self.function_list = QtWidgets.QListWidget()
+        file_parse_layout.addWidget(self.browse_button)
+        file_parse_layout.addWidget(self.function_list)
+
+        # -- Tab 2: Manual Input Layout --
+        manual_input_layout = QtWidgets.QVBoxLayout(manual_input_widget)
+        self.manual_cmd_input = QtWidgets.QTextEdit()
+        self.manual_cmd_input.setPlaceholderText("請在此輸入完整的Python或MEL指令...")
+        manual_input_layout.addWidget(self.manual_cmd_input)
+
+        # -- Attribute Editor Layout (使用 QFormLayout 更整齊) --
+        self.attribute_box = QtWidgets.QGroupBox("屬性編輯器")
+        form_layout = QtWidgets.QFormLayout()
+
+        self.label_input = QtWidgets.QLineEdit()
+        self.path_input = QtWidgets.QLineEdit()
+        self.path_input.setPlaceholderText("例如: Tools/Modeling")
+        self.order_input = QtWidgets.QSpinBox()
+        self.order_input.setRange(0, 999)
+        self.icon_input = QtWidgets.QLineEdit() # 之後會加上瀏覽按鈕
+        self.dockable_checkbox = QtWidgets.QCheckBox("可停靠介面 (IsDockableUI)")
+        self.option_box_checkbox = QtWidgets.QCheckBox("作為選項框 (IsOptionBox)")
+
+        form_layout.addRow("菜單標籤 (Label):", self.label_input)
+        form_layout.addRow("菜單路徑 (Path):", self.path_input)
+        form_layout.addRow("排序順位 (Order):", self.order_input)
+        form_layout.addRow("圖示 (Icon):", self.icon_input)
+        form_layout.addRow(self.dockable_checkbox)
+        form_layout.addRow(self.option_box_checkbox)
+
+        self.attribute_box.setLayout(form_layout)
+
+        # -- 操作按鈕 --
+        self.add_update_button = QtWidgets.QPushButton("新增至結構")
+        self.delete_button = QtWidgets.QPushButton("從結構中刪除")
+        self.save_button = QtWidgets.QPushButton("儲存設定檔")
+
+        # -- 組合右側所有元件 --
+        right_layout.addWidget(self.input_tabs)
+        right_layout.addWidget(self.attribute_box)
+        right_layout.addWidget(self.add_update_button)
+        right_layout.addWidget(self.delete_button)
+        right_layout.addStretch() # 將按鈕往上推
+        right_layout.addWidget(self.save_button)
 
 
         # --- 組合左右佈局 ---
         main_layout.addLayout(left_layout, stretch=1)
-        main_layout.addLayout(right_layout, stretch=1)
+        main_layout.addWidget(right_widget, stretch=1)
         
     def populate_menu_tree(self, items: List[MenuItemData]):
         """用載入的資料填充左側的樹狀視圖。"""

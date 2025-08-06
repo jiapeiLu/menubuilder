@@ -39,7 +39,17 @@ class DataHandler:
             return []
 
     def save_menu_config(self, config_name: str, data: List[MenuItemData]):
-        """將菜單項資料儲存為JSON檔案 (此階段先留空)。"""
-        # 這個功能將在 Phase 2 實現
-        log.info("save_menu_config() 已被呼叫，但功能將在Phase 2實現。")
-        pass
+        """將菜單項資料列表轉換為字典並儲存為JSON檔案。"""
+        config_path = MENUITEMS_DIR / f"{config_name}.json"
+        
+        try:
+            # 將 MenuItemData 物件列表轉換回字典列表
+            data_to_save = [item.to_dict() for item in data]
+            
+            with open(config_path, 'w', encoding='utf-8') as f:
+                # indent=4 讓JSON檔案格式化，更易讀
+                json.dump(data_to_save, f, ensure_ascii=False, indent=4)
+            log.info(f"成功將 {len(data)} 個菜單項儲存至 {config_path}")
+            
+        except Exception as e:
+            log.error(f"儲存設定檔時發生錯誤: {e}", exc_info=True)
