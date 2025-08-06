@@ -86,6 +86,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.add_update_button = QtWidgets.QPushButton("新增至結構")
         self.delete_button = QtWidgets.QPushButton("從結構中刪除")
         self.save_button = QtWidgets.QPushButton("儲存設定檔")
+        self.build_menus_button = QtWidgets.QPushButton("✨ 在Maya中產生/刷新菜單 (Build Menus)")
+# ...
 
         # -- 組合右側所有元件 --
         right_layout.addWidget(self.input_tabs)
@@ -94,6 +96,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         right_layout.addWidget(self.delete_button)
         right_layout.addStretch() # 將按鈕往上推
         right_layout.addWidget(self.save_button)
+        right_layout.addWidget(self.build_menus_button)
 
 
         # --- 組合左右佈局 ---

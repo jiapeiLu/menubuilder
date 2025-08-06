@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 setting_FILE = Path(__file__).parent.parent / "setting.json"
 
-def load_setting(settingdir = setting_FILE):
+def load_setting(setting_path = setting_FILE):
     """
     載入設定檔 setting.json，並提供安全的預設值。
     """

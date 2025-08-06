@@ -8,6 +8,10 @@ from .data_handler import DataHandler
 #phase2 新增
 from .script_parser import ScriptParser
 from PySide2 import QtWidgets
+#phase3 新增
+from .menu_generator import MenuGenerator # 導入 MenuGenerator
+import maya.cmds as cmds
+import os
 
 def preserve_ui_state(func):
     """
@@ -41,8 +45,10 @@ class MenuBuilderController:
     def __init__(self):
         log.info("MenuBuilderController 初始化開始...")
         self.data_handler = DataHandler()
+        self.menu_generator = MenuGenerator() # 實例化 MenuGenerator
         self.ui = MenuBuilderUI(self)
         self.current_menu_data = [] # 重要：用來儲存當前編輯的菜單資料
+        self.current_selected_script_path = None # <-- [新增] 用於儲存當前腳本的路徑
         self._load_initial_data()
         self._connect_signals()
         log.info("MenuBuilderController 初始化完成。")
@@ -54,6 +60,7 @@ class MenuBuilderController:
         self.ui.add_update_button.clicked.connect(self.on_add_item_clicked)
         self.ui.delete_button.clicked.connect(self.on_delete_item_clicked)
         self.ui.save_button.clicked.connect(self.on_save_config_clicked)
+        self.ui.build_menus_button.clicked.connect(self.on_build_menu_clicked)
 
     def _load_initial_data(self):
         """載入設定中指定的預設菜單設定檔。"""
@@ -63,12 +70,11 @@ class MenuBuilderController:
             return
             
         log.info(f"正在載入預設菜單設定檔: {default_config}.json")
-        menu_data = self.data_handler.load_menu_config(default_config)
         
-        if menu_data:
-            self.ui.populate_menu_tree(menu_data)
-            
+        # 載入資料並存入 self.current_menu_data
         self.current_menu_data = self.data_handler.load_menu_config(default_config)
+        
+        # 如果成功載入資料，則刷新UI
         if self.current_menu_data:
             self.ui.populate_menu_tree(self.current_menu_data)
 
@@ -76,7 +82,10 @@ class MenuBuilderController:
         """當瀏覽按鈕被點擊時觸發。"""
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "選擇 Python 腳本", "", "Python Files (*.py)")
         if not file_path:
+            self.current_selected_script_path = None # <-- [新增] 如果取消選擇，則清空路徑
             return
+            
+        self.current_selected_script_path = file_path # <-- [新增] 儲存選擇的路徑
             
         self.ui.function_list.clear()
         functions = ScriptParser.parse_py_file(file_path)
@@ -84,17 +93,45 @@ class MenuBuilderController:
         log.info(f"從 {file_path} 解析出 {len(functions)} 個函式。")
 
     def on_function_selected(self, current, previous):
-        """當函式列表中的選項改變時觸發。"""
-        if not current:
+        """
+        當函式列表中的選項改變時觸發。
+        將自動生成完整的執行指令，並填入到手動輸入框中。
+        """
+        if not current or not self.current_selected_script_path:
             return
         
+        # --- 1. 獲取必要的資訊 ---
+        # 函式名稱 (e.g., "findKeyRange")
         func_name = current.text()
+        
+        # 從完整路徑中提取不含副檔名的模組名 (e.g., "autoTimeRange")
+        module_name = os.path.basename(self.current_selected_script_path).replace('.py', '')
+
+        # --- 2. 生成指令和標籤 ---
+        # 生成標籤 (e.g., "Find Key Range")
         generated_label = ScriptParser.generate_label_from_string(func_name)
         
-        # 將生成的標籤和函式名填入右側的屬性編輯器
+        # 生成可執行的完整指令
+        # 使用 importlib.reload() 是更現代、更推薦的做法
+        # 這裡用 reload() 是為了簡化，但在Python 3中，它其實是 importlib.reload
+        command_to_run = (
+            f"import {module_name}\n"
+            f"from importlib import reload\n"
+            f"reload({module_name})\n"
+            f"{module_name}.{func_name}()"
+        )
+        
+        # --- 3. 更新 UI ---
+        # 更新標籤輸入框
         self.ui.label_input.setText(generated_label)
         
-        # (這裡也可以預先填入其他欄位，例如從 manual_cmd_input 取得完整指令)
+        # 切換到「手動輸入指令」分頁 (索引值為 1)
+        self.ui.input_tabs.setCurrentIndex(1)
+        
+        # 將生成的指令填入文字框
+        self.ui.manual_cmd_input.setText(command_to_run)
+        
+        log.debug(f"已生成指令並填入UI: {command_to_run}")
 
     @preserve_ui_state # <-- 應用裝飾器
     def on_add_item_clicked(self):
@@ -139,6 +176,20 @@ class MenuBuilderController:
         """儲存當前的菜單結構到檔案。"""
         config_name = current_setting.get("menuitems") # 從設定檔取得要儲存的檔名
         self.data_handler.save_menu_config(config_name, self.current_menu_data)
+
+    def on_build_menu_clicked(self):
+        """當'生成/刷新菜單'按鈕被點擊時觸發。"""
+        log.info("開始生成/刷新 Maya 菜單...")
+        
+        # 1. 清除舊菜單
+        self.menu_generator.clear_existing_menus()
+        
+        # 2. 用當前編輯的資料建立新菜單
+        self.menu_generator.build_from_config(self.current_menu_data)
+        
+        # 3. 給予使用者反饋
+        cmds.inViewMessage(amg='<hl>菜單已成功生成/刷新！</hl>', pos='midCenter', fade=True)
+
 
     def show_ui(self):
         log.info("顯示 Menubuilder UI。")
