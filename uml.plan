@@ -1,0 +1,103 @@
+@startuml classDiagram
+
+    class MenuBuilderController {
+        -ui: MenuBuilderUI
+        -data_handler: DataHandler
+        -script_parser: ScriptParser
+        -menu_generator: MenuGenerator
+        -settings: SettingsHandler
+        -logger: AppLogger
+        -current_config_data: list~MenuItemData~
+        +show_ui()
+        #--- UI Slots / Event Handlers ---#
+        +on_load_config_file(path: str)
+        +on_save_config_clicked()
+        +on_build_menu_clicked()
+        +on_browse_script_clicked()
+        +on_function_selected(func_data: dict)
+        +on_add_item_clicked(item_data: MenuItemData)
+        +on_update_item_clicked(item_id: str, item_data: MenuItemData)
+        +on_delete_item_clicked(item_id: str)
+        +on_tree_item_dragged(source_id: str, target_id: str)
+        +on_tree_item_doubled_clicked(item_id: str)
+    }
+
+    class MenuBuilderUI {
+        -controller: MenuBuilderController
+        -main_window: QMainWindow
+        #--- Widgets ---#
+        -menu_tree_view: QTreeWidget
+        -function_list: QListWidget
+        -add_update_button: QPushButton
+        +__init__(controller: MenuBuilderController)
+        +show()
+        +populate_menu_tree(data: list~MenuItemData~)
+        +populate_function_list(functions: list)
+        +get_attributes_from_fields() -> MenuItemData
+        +set_attributes_to_fields(data: MenuItemData)
+        +show_message(title: str, message: str)
+        +get_selected_config_for_save() -> str
+    }
+
+    class DataHandler {
+        #menuitems/*.json manager#
+        -current_file_path: str
+        +load_menu_config(file_path: str) -> list~MenuItemData~
+        +save_menu_config(file_path: str, data: list~MenuItemData~)
+        +get_available_configs(directory: str) -> list~str~
+    }
+    
+    class ScriptParser {
+        #Static Utility Class#
+        +parse_py_file(file_path: str) -> list~dict~
+        +analyze_py_function(code: str) -> dict
+        +generate_label_from_string(command: str) -> str
+    }
+    
+    class MenuGenerator {
+        #Maya Interaction#
+        -MENU_ROOT_NAME: str
+        +clear_existing_menus()
+        +build_from_config(data: list~MenuItemData~)
+    }
+
+    class SettingsHandler {
+        #settings.json manager#
+        -settings_file_path: str
+        +load_settings() -> dict
+        +save_settings(data: dict)
+    }
+
+    class AppLogger {
+        #Logging Utility#
+        +setup_logger()
+        +info(message: str)
+        +error(message: str)
+        +warning(message: str)
+    }
+
+    class MenuItemData {
+        #Data Transfer Object#
+        +sub_menu_path: str
+        +order: int
+        +function_str: str
+        +menu_label: str
+        +module_path: str
+        +icon_path: str
+        +is_dockable: bool
+        +is_option_box: bool
+    }
+
+    MenuBuilderController o-- MenuBuilderUI : "manages/ owns"
+    MenuBuilderController o-- DataHandler : "manages/ owns"
+    MenuBuilderController o-- ScriptParser : "manages/ owns"
+    MenuBuilderController o-- MenuGenerator : "manages/ owns"
+    MenuBuilderController o-- SettingsHandler : "manages/ owns"
+    MenuBuilderController o-- AppLogger : "manages/ owns"
+    
+    MenuBuilderController ..> MenuItemData : "uses"
+    MenuBuilderUI ..> MenuItemData : "displays / creates"
+    DataHandler ..> MenuItemData : "loads / saves"
+    MenuGenerator ..> MenuItemData : "builds from"
+
+    @enduml

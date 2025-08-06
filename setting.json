@@ -1,0 +1,7 @@
+{
+  "menuitems": "TempBar",
+  "log_modes": ["DEBUG", "INFO", "WARNING", "ERROR"],
+  "log_level": "DEBUG" ,
+  "languages_modes":["zh_tw","en_us"],
+  "language": "en_us"
+}
