@@ -1,20 +1,42 @@
 [
     {
-        "menu_label": "Create Sphere",
-        "sub_menu_path": "Tools/Modeling",
-        "function_str": "cmds.polySphere()",
-        "order": 10
-    },
-    {
-        "menu_label": "Create Cube",
-        "sub_menu_path": "Tools/Modeling",
-        "function_str": "cmds.polyCube()",
-        "order": 20
-    },
-    {
-        "menu_label": "Freeze Transformations",
         "sub_menu_path": "Tools/Animation",
+        "order": 10,
         "function_str": "cmds.makeIdentity(apply=True, t=1, r=1, s=1, n=0)",
-        "order": 10
+        "menu_label": "Freeze Transformations",
+        "module_path": "",
+        "icon_path": "",
+        "is_dockable": false,
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Tools/Animation",
+        "order": 0,
+        "function_str": "setPlayBack",
+        "menu_label": "Set Play Back",
+        "module_path": "",
+        "icon_path": "",
+        "is_dockable": false,
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Tools/Animation",
+        "order": 0,
+        "function_str": "cmds.joint()",
+        "menu_label": "Set Play Back",
+        "module_path": "",
+        "icon_path": "",
+        "is_dockable": false,
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Tools/Modeling",
+        "order": 10,
+        "function_str": "cmds.polySphere()",
+        "menu_label": "Create Sphere",
+        "module_path": "",
+        "icon_path": "",
+        "is_dockable": false,
+        "is_option_box": false
     }
 ]

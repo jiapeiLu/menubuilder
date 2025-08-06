@@ -1,9 +1,41 @@
 # core/controller.py
+import functools # 導入 functools 以便使用 wraps
 from .logger import log  # 從我們建立的logger模組導入已經配置好的log實例
 #phase1 新增
 from .setting_reader import current_setting
 from .ui import MenuBuilderUI
 from .data_handler import DataHandler
+#phase2 新增
+from .script_parser import ScriptParser
+from PySide2 import QtWidgets
+
+def preserve_ui_state(func):
+    """
+    一個裝飾器，用於在執行函式前後自動保存和還原UI的狀態。
+    它會處理樹狀視圖的展開狀態。
+    """
+    @functools.wraps(func)  # 這可以保持原函式的名稱、文檔等元數據
+    def wrapper(self, *args, **kwargs):
+        # 參數中的 'self' 就是 MenuBuilderController 的實例
+        if not hasattr(self, 'ui'):
+            # 安全檢查，確保ui物件存在
+            return func(self, *args, **kwargs)
+
+        # 1. 記錄 -> 執行前的 "Setup"
+        expansion_state = self.ui.get_expansion_state()
+        log.debug(f"裝飾器: 狀態已記錄。準備執行 '{func.__name__}'...")
+
+        # 使用 try...finally 來確保即使函式出錯，還原步驟依然會執行
+        try:
+            # 2. 操作 -> 執行原始函式 (例如 on_delete_item_clicked)
+            result = func(self, *args, **kwargs)
+        finally:
+            # 4. 還原 -> 執行後的 "Teardown"
+            self.ui.set_expansion_state(expansion_state)
+            log.debug("裝飾器: UI狀態已還原。")
+        
+        return result
+    return wrapper
 
 class MenuBuilderController:
     def __init__(self):
@@ -64,7 +96,7 @@ class MenuBuilderController:
         
         # (這裡也可以預先填入其他欄位，例如從 manual_cmd_input 取得完整指令)
 
-    # 新增方法:
+    @preserve_ui_state # <-- 應用裝飾器
     def on_add_item_clicked(self):
         """將右側編輯器的內容轉換為一個新的菜單項並加入。"""
         # 1. 從UI收集資料
@@ -78,6 +110,7 @@ class MenuBuilderController:
         # 3. 刷新UI
         self.ui.populate_menu_tree(self.current_menu_data)
 
+    @preserve_ui_state # <-- 應用裝飾器
     def on_delete_item_clicked(self):
         """刪除左側樹狀視圖中當前選擇的項目。"""
         # (這部分邏輯較複雜，需要先在UI中確定如何識別被選中的項目)

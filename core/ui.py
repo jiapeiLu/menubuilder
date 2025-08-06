@@ -130,3 +130,54 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             menu_qitem = QtWidgets.QTreeWidgetItem(parent_item, [item.menu_label, item.sub_menu_path])
             if item.icon_path:
                 menu_qitem.setIcon(0, QtGui.QIcon(item.icon_path))
+    
+    def get_attributes_from_fields(self) -> MenuItemData:
+        """從右側面板的所有輸入框中收集資料，並返回一個 MenuItemData 物件。"""
+        
+        # 判斷指令來源：是從函式列表選擇，還是手動輸入
+        # Tab 0: 從檔案解析, Tab 1: 手動輸入
+        function_string = ""
+        if self.input_tabs.currentIndex() == 0:
+            selected_func_item = self.function_list.currentItem()
+            if selected_func_item:
+                # 這裡可以設計得更完善，比如把完整的導入和呼叫語法也組合進去
+                function_string = selected_func_item.text()
+        else: # 手動輸入
+            function_string = self.manual_cmd_input.toPlainText()
+
+        # 創建 DTO 物件並填充資料
+        item_data = MenuItemData(
+            menu_label=self.label_input.text(),
+            sub_menu_path=self.path_input.text(),
+            order=self.order_input.value(),
+            icon_path=self.icon_input.text(),
+            is_dockable=self.dockable_checkbox.isChecked(),
+            is_option_box=self.option_box_checkbox.isChecked(),
+            function_str=function_string
+            # module_path 可以考慮在選擇檔案時就存起來
+        )
+        return item_data
+        
+    def get_expansion_state(self) -> set:
+        """遍歷樹並返回所有已展開項目的路徑集合。"""
+        expanded_paths = set()
+        iterator = QtWidgets.QTreeWidgetItemIterator(self.menu_tree_view)
+        while iterator.value():
+            item = iterator.value()
+            # 我們用 item_map 中的 key (路徑) 作為唯一識別碼
+            # 檢查 item 是否在 self.item_map 的值中
+            for path, mapped_item in self.item_map.items():
+                if item == mapped_item and item.isExpanded():
+                    expanded_paths.add(path)
+                    break
+            iterator += 1
+        return expanded_paths
+
+    def set_expansion_state(self, expanded_paths: set):
+        """根據提供的路徑集合，展開對應的項目。"""
+        if not expanded_paths:
+            return
+        
+        for path, item in self.item_map.items():
+            if path in expanded_paths:
+                item.setExpanded(True)        

@@ -7,6 +7,31 @@ class ScriptParser:
 
     @staticmethod
     def parse_py_file(file_path: str) -> list:
+        """
+        [推薦使用] 一個更寬容的解析方法，使用正則表達式。
+        它能容忍檔案中的語法錯誤 (例如 Python 2 的 print 語法)。
+        """
+        functions = []
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 正則表達式: 尋找以 'def' 開頭，後接函式名稱和括號的行
+            # ^\s* - 行首可能有空格
+            # def\s+     - 'def'關鍵字和至少一個空格
+            # ([a-zA-Z_]\w*) - 捕獲函式名稱 (必須以字母或底線開頭)
+            # \s*\(      - 函式名稱後可能有空格，然後是左括號
+            pattern = re.compile(r'^\s*def\s+([a-zA-Z_]\w*)\s*\(', re.MULTILINE)
+            functions = pattern.findall(content)
+            return functions
+
+        except Exception as e:
+            log.error(f"使用正則表達式解析檔案時出錯: {e}", exc_info=True)
+            return []
+    
+    # (可以保留舊的 ast 方法作為備用)
+    @staticmethod
+    def parse_py_file_strict(file_path: str) -> list:
         """使用AST解析Python檔案，找出所有頂層函式定義。"""
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
