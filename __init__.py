@@ -15,7 +15,4 @@ def show():
     if instance is None:
         instance = controller.MenuBuilderController()
 
-    # 這裡最終會呼叫 instance.show_ui()
-    # 目前的 print 僅為佔位符
-    print('Show Menu Builder Tool UI')
-    instance.show_ui() # 為下一階段做準備
+    instance.show_ui() 

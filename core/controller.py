@@ -7,7 +7,7 @@ from .ui import MenuBuilderUI
 from .data_handler import DataHandler
 #phase2 新增
 from .script_parser import ScriptParser
-from PySide2 import QtWidgets
+from PySide2 import QtWidgets, QtCore
 #phase3 新增
 from .menu_generator import MenuGenerator # 導入 MenuGenerator
 import maya.cmds as cmds
@@ -49,26 +49,40 @@ class MenuBuilderController:
         self.menu_generator = MenuGenerator() # 實例化 MenuGenerator
         self.ui = MenuBuilderUI(self)
         self.current_menu_data = [] # 重要：用來儲存當前編輯的菜單資料
-        self.current_selected_script_path = None # <-- [新增] 用於儲存當前腳本的路徑
+        self.current_selected_script_path = None # <-- 用於儲存當前腳本的路徑
+        self.current_edit_item_data = None # [新增] 用於追蹤當前正在編輯的項目
+        self._signals_connected = False # [新增] 初始化信號連接旗標 AI 強烈建議加上避免重覆C++底層重覆呼叫?
         self._load_initial_data()
         self._connect_signals()
         log.info("MenuBuilderController 初始化完成。")
 
     def _connect_signals(self):
-        """集中管理所有UI信號的連接。"""
+        """集中管理所有UI信號的連接。
+        使用旗標確保這個函式只會被成功執行一次。
+        """
+        # [核心修改] 只有在尚未連接過信號時，才執行連接操作
+        if self._signals_connected:
+            log.debug("信號已經連接過，跳過。")
+            return
+        log.debug("正在進行初次信號連接...")
         self.ui.browse_button.clicked.connect(self.on_browse_script_clicked)
         self.ui.function_list.currentItemChanged.connect(self.on_function_selected)
         self.ui.add_update_button.clicked.connect(self.on_add_item_clicked)
         self.ui.delete_button.clicked.connect(self.on_delete_item_clicked)
-        #self.ui.save_button.clicked.connect(self.on_save_config_clicked)
         self.ui.build_menus_button.clicked.connect(self.on_build_menu_clicked)
+        self.ui.menu_tree_view.itemDoubleClicked.connect(self.on_tree_item_double_clicked)
+        
         # [新增] 連接檔案菜單的動作
         self.ui.open_action.triggered.connect(self.on_file_open)
         self.ui.merge_action.triggered.connect(self.on_file_merge)
         self.ui.save_action.triggered.connect(self.on_save_config_clicked)
         self.ui.save_as_action.triggered.connect(self.on_file_save_as)
         self.ui.exit_action.triggered.connect(self.ui.close) # 直接連接到視窗的關閉方法
-  
+
+        # [新增] 在所有連接完成後，將旗標設為 True
+        self._signals_connected = True
+        log.debug("信號連接完成。")
+        
     def _load_initial_data(self):
         """載入設定中指定的預設菜單設定檔。"""
         default_config = current_setting.get("menuitems")
@@ -277,6 +291,63 @@ class MenuBuilderController:
         # 使用更新後的資料進行儲存
         self.data_handler.save_menu_config(config_name, self.current_menu_data)
         log.info(f"已將當前設定另存為: {file_path}")
+
+    # [新增] 雙擊事件的處理函式
+    def on_tree_item_double_clicked(self, item, column):
+        """當樹狀列表中的項目被雙擊時觸發。"""
+        item_data = item.data(0, QtCore.Qt.UserRole)
+        if not item_data:
+            log.debug("雙擊的是一個文件夾，無操作。")
+            self.current_edit_item_data = None # 清空編輯目標
+            self.ui.add_update_button.setText("新增至結構") # 按鈕文字還原
+            return
+        
+        log.info(f"正在編輯項目: {item_data.menu_label}")
+        # 1. 記錄當前正在編輯的項目
+        self.current_edit_item_data = item_data
+        
+        # 2. 呼叫UI方法，將資料填入右側面板
+        self.ui.set_attributes_to_fields(item_data)
+        
+        # 3. [UX優化] 將按鈕文字從「新增」改為「更新」
+        self.ui.add_update_button.setText("更新項目 (Update)")
+
+    # [修改] on_add_item_clicked 方法，使其能處理更新邏輯
+    @preserve_ui_state
+    def on_add_item_clicked(self):
+        """
+        處理'新增/更新'按鈕的點擊事件。
+        如果當前有正在編輯的項目，則執行更新；否則執行新增。
+        """
+        # 從UI面板獲取當前所有欄位的資料
+        edited_data = self.ui.get_attributes_from_fields()
+        if not edited_data.menu_label or not edited_data.function_str:
+            log.warning("請確保'菜單標籤'和'指令'欄位不為空。")
+            return
+
+        if self.current_edit_item_data:
+            # --- 執行更新邏輯 ---
+            log.info(f"更新項目 '{self.current_edit_item_data.menu_label}'...")
+            # 直接修改記憶體中原有的 MenuItemData 物件的屬性
+            self.current_edit_item_data.menu_label = edited_data.menu_label
+            self.current_edit_item_data.sub_menu_path = edited_data.sub_menu_path
+            self.current_edit_item_data.order = edited_data.order
+            self.current_edit_item_data.icon_path = edited_data.icon_path
+            self.current_edit_item_data.is_dockable = edited_data.is_dockable
+            self.current_edit_item_data.is_option_box = edited_data.is_option_box
+            self.current_edit_item_data.function_str = edited_data.function_str
+            
+            # 清除編輯狀態並還原按鈕文字
+            self.current_edit_item_data = None
+            self.ui.add_update_button.setText("新增至結構")
+        else:
+            # --- 執行新增邏輯 ---
+            self.current_menu_data.append(edited_data)
+            log.info(f"新增菜單項: {edited_data.menu_label}")
+        
+        # 最後，無論是新增還是更新，都刷新整個UI樹
+        self.ui.populate_menu_tree(self.current_menu_data)
+
 
     def show_ui(self):
         log.info("顯示 Menubuilder UI。")

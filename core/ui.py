@@ -36,7 +36,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.menu_tree_view.setDragEnabled(True)
         self.menu_tree_view.setAcceptDrops(True)
         self.menu_tree_view.setDropIndicatorShown(True)
-        
+
         left_layout.addWidget(left_label)
         left_layout.addWidget(self.menu_tree_view)
         # (按鈕暫時先不加，或先禁用)
@@ -264,3 +264,22 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         for path, item in self.item_map.items():
             if path in expanded_paths:
                 item.setExpanded(True)        
+
+    def set_attributes_to_fields(self, data: MenuItemData):
+        """接收一個 MenuItemData 物件，並將其內容更新到右側的編輯器UI上。"""
+        if not data:
+            # 可以選擇清空所有欄位
+            log.warning("傳入的 item_data 為空，無法填入欄位。")
+            return
+
+        # 填入所有對應的欄位
+        self.label_input.setText(data.menu_label)
+        self.path_input.setText(data.sub_menu_path)
+        self.order_input.setValue(data.order)
+        self.icon_input.setText(data.icon_path)
+        self.dockable_checkbox.setChecked(data.is_dockable)
+        self.option_box_checkbox.setChecked(data.is_option_box)
+
+        # 將指令填入「手動輸入」框，並切換到該分頁，方便查看和編輯
+        self.input_tabs.setCurrentIndex(1)
+        self.manual_cmd_input.setText(data.function_str)                
