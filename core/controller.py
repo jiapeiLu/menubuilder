@@ -12,6 +12,7 @@ from PySide2 import QtWidgets
 from .menu_generator import MenuGenerator # 導入 MenuGenerator
 import maya.cmds as cmds
 import os
+from pathlib import Path
 
 def preserve_ui_state(func):
     """
@@ -59,9 +60,15 @@ class MenuBuilderController:
         self.ui.function_list.currentItemChanged.connect(self.on_function_selected)
         self.ui.add_update_button.clicked.connect(self.on_add_item_clicked)
         self.ui.delete_button.clicked.connect(self.on_delete_item_clicked)
-        self.ui.save_button.clicked.connect(self.on_save_config_clicked)
+        #self.ui.save_button.clicked.connect(self.on_save_config_clicked)
         self.ui.build_menus_button.clicked.connect(self.on_build_menu_clicked)
-
+        # [新增] 連接檔案菜單的動作
+        self.ui.open_action.triggered.connect(self.on_file_open)
+        self.ui.merge_action.triggered.connect(self.on_file_merge)
+        self.ui.save_action.triggered.connect(self.on_save_config_clicked)
+        self.ui.save_as_action.triggered.connect(self.on_file_save_as)
+        self.ui.exit_action.triggered.connect(self.ui.close) # 直接連接到視窗的關閉方法
+  
     def _load_initial_data(self):
         """載入設定中指定的預設菜單設定檔。"""
         default_config = current_setting.get("menuitems")
@@ -172,7 +179,7 @@ class MenuBuilderController:
             log.info(f"已刪除菜單項: {item_to_remove.menu_label}")
             self.ui.populate_menu_tree(self.current_menu_data)
 
-    #[新增] 同步資料
+        #[新增] 同步資料
     def _sync_data_from_ui(self):
         """核心同步函式：從UI掃描最新狀態，並更新記憶體中的資料列表。"""
         log.debug("從 UI 同步資料...")
@@ -213,6 +220,63 @@ class MenuBuilderController:
         # 3. 給予使用者反饋
         cmds.inViewMessage(amg='<hl>菜單已成功生成/刷新！</hl>', pos='midCenter', fade=True)
 
+    def on_file_open(self):
+        """處理 '開啟' 動作。"""
+        log.debug("處理 '開啟' 動作...")
+        # 從 data_handler 取得預設的 menuitems 資料夾路徑
+        default_dir = str(self.data_handler.MENUITEMS_DIR)
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "開啟菜單設定檔", default_dir, "JSON Files (*.json)")
+        
+        if not file_path:
+            log.debug("使用者取消了檔案選擇。")
+            return
+        
+        # 從完整路徑中提取不含副檔名的檔名
+        config_name = Path(file_path).stem
+        
+        # 載入新資料並完全覆蓋現有資料
+        new_data = self.data_handler.load_menu_config(config_name)
+        self.current_menu_data = new_data
+        
+        # 刷新UI
+        self.ui.populate_menu_tree(self.current_menu_data)
+        log.info(f"已成功開啟並載入設定檔: {file_path}")
+
+    def on_file_merge(self):
+        """處理 '合併' 動作。"""
+        log.debug("處理 '合併' 動作...")
+        default_dir = str(self.data_handler.MENUITEMS_DIR)
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "選擇要合併的設定檔", default_dir, "JSON Files (*.json)")
+
+        if not file_path:
+            return
+            
+        config_name = Path(file_path).stem
+        new_data = self.data_handler.load_menu_config(config_name)
+
+        if new_data:
+            # [核心] 將新資料附加到現有資料列表的末尾
+            self.current_menu_data.extend(new_data)
+            # 刷新UI
+            self.ui.populate_menu_tree(self.current_menu_data)
+            log.info(f"已成功將 {file_path} 的內容合併至當前設定。")
+
+    def on_file_save_as(self):
+        """處理 '另存為' 動作。"""
+        log.debug("處理 '另存為' 動作...")
+        default_dir = str(self.data_handler.MENUITEMS_DIR)
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, "另存為菜單設定檔", default_dir, "JSON Files (*.json)")
+
+        if not file_path:
+            return
+            
+        # [重要] 在儲存前，先從UI同步最新的順序和結構
+        self._sync_data_from_ui()
+
+        config_name = Path(file_path).stem
+        # 使用更新後的資料進行儲存
+        self.data_handler.save_menu_config(config_name, self.current_menu_data)
+        log.info(f"已將當前設定另存為: {file_path}")
 
     def show_ui(self):
         log.info("顯示 Menubuilder UI。")

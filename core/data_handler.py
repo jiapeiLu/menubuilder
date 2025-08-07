@@ -5,18 +5,18 @@ from typing import List, Dict, Any
 from .dto import MenuItemData
 from .logger import log
 
-# 動態獲取 menuitems 資料夾的路徑
-MENUITEMS_DIR = Path(__file__).parent.parent / "menuitems"
-
 class DataHandler:
     """負責讀取和寫入菜單設定檔。"""
+    
+    # 動態獲取 menuitems 資料夾的路徑
+    MENUITEMS_DIR = Path(__file__).parent.parent / "menuitems"
 
     def load_menu_config(self, config_name: str) -> List[MenuItemData]:
         """
         從 menuitems 資料夾載入指定的設定檔。
         config_name: 不含 .json 副檔名的檔案名，例如 "TempBar"。
         """
-        config_path = MENUITEMS_DIR / f"{config_name}.json"
+        config_path = self.MENUITEMS_DIR / f"{config_name}.json"
         
         if not config_path.exists():
             log.error(f"設定檔不存在: {config_path}")
@@ -40,7 +40,7 @@ class DataHandler:
 
     def save_menu_config(self, config_name: str, data: List[MenuItemData]):
         """將菜單項資料列表轉換為字典並儲存為JSON檔案。"""
-        config_path = MENUITEMS_DIR / f"{config_name}.json"
+        config_path = self.MENUITEMS_DIR / f"{config_name}.json"
         
         try:
             # 將 MenuItemData 物件列表轉換回字典列表
