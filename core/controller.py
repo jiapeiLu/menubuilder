@@ -71,6 +71,8 @@ class MenuBuilderController:
         self.ui.delete_button.clicked.connect(self.on_delete_item_clicked)
         self.ui.build_menus_button.clicked.connect(self.on_build_menu_clicked)
         self.ui.menu_tree_view.itemDoubleClicked.connect(self.on_tree_item_double_clicked)
+        self.ui.menu_tree_view.customContextMenuRequested.connect(self.ui.on_tree_context_menu)
+        self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed) # [新增] 連接項目變更(編輯完成)的信號
         
         # [新增] 連接檔案菜單的動作
         self.ui.open_action.triggered.connect(self.on_file_open)
@@ -98,6 +100,13 @@ class MenuBuilderController:
         # 如果成功載入資料，則刷新UI
         if self.current_menu_data:
             self.ui.populate_menu_tree(self.current_menu_data)
+
+    def show_ui(self):
+        log.info("顯示 Menubuilder UI。")
+        try:
+            self.ui.show()
+        except Exception as e:
+            log.error(f"顯示UI時發生錯誤: {e}", exc_info=True) # exc_info=True 會記錄完整的錯誤堆疊
 
     def on_browse_script_clicked(self):
         """當瀏覽按鈕被點擊時觸發。"""
@@ -297,7 +306,7 @@ class MenuBuilderController:
         """當樹狀列表中的項目被雙擊時觸發。"""
         item_data = item.data(0, QtCore.Qt.UserRole)
         if not item_data:
-            log.debug("雙擊的是一個文件夾，無操作。")
+            log.debug("雙擊的是一個文件夾，可編輯名稱。")
             self.current_edit_item_data = None # 清空編輯目標
             self.ui.add_update_button.setText("新增至結構") # 按鈕文字還原
             return
@@ -348,10 +357,89 @@ class MenuBuilderController:
         # 最後，無論是新增還是更新，都刷新整個UI樹
         self.ui.populate_menu_tree(self.current_menu_data)
 
+    def on_context_send_path(self, path: str):
+        """接收來自右鍵選單的路徑，並更新到UI輸入框中。"""
+        log.debug(f"從右鍵選單接收到路徑: {path}")
+        self.ui.path_input.setText(path)
+        # 順便清空標籤和指令，準備新增
+        self.ui.label_input.clear()
+        self.ui.manual_cmd_input.clear()
+        self.current_edit_item_data = None
+        self.ui.add_update_button.setText("新增至結構")
 
-    def show_ui(self):
-        log.info("顯示 Menubuilder UI。")
-        try:
-            self.ui.show()
-        except Exception as e:
-            log.error(f"顯示UI時發生錯誤: {e}", exc_info=True) # exc_info=True 會記錄完整的錯誤堆疊
+
+    def on_context_add_under(self, parent_path: str):
+        """在指定的父路徑下準備新增一個項目。"""
+        log.debug(f"準備在 '{parent_path}' 下新增項目。")
+        self.on_context_send_path(parent_path) # 直接復用上面的函式來清空和設定路徑
+        self.ui.label_input.setFocus() # 將游標焦點設在標籤輸入框，方便使用者輸入
+
+    @preserve_ui_state
+    def on_context_delete(self, item: QtWidgets.QTreeWidgetItem):
+        """處理刪除操作，可能是單一項目或整個文件夾。"""
+        item_data = item.data(0, QtCore.Qt.UserRole)
+        item_path = self.ui.get_path_for_item(item)
+        
+        items_to_delete = []
+        
+        # 先同步一次資料，確保 self.current_menu_data 是最新的
+        self._sync_data_from_ui()
+
+        if item.childCount() > 0:
+            # --- 刪除整個文件夾 ---
+            reply = QtWidgets.QMessageBox.question(
+                self.ui, '確認刪除', 
+                f"您確定要刪除 '{item_path}' 及其下的所有內容嗎？\n此操作無法復原。",
+                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, 
+                QtWidgets.QMessageBox.No
+            )
+            if reply == QtWidgets.QMessageBox.No:
+                return # 使用者取消操作
+            
+            # 找出所有路徑符合的項目 (包括自身和所有子項目)
+            items_to_delete = [
+                data for data in self.current_menu_data 
+                if data.sub_menu_path == item_path or data.sub_menu_path.startswith(item_path + '/')
+            ]
+            # 如果點擊的文件夾本身是一個功能項，也把它加進去
+            if item_data and item_data not in items_to_delete:
+                items_to_delete.append(item_data)
+        else:
+            # --- 刪除單一項目 ---
+            if item_data:
+                items_to_delete.append(item_data)
+        
+        if items_to_delete:
+            log.info(f"準備刪除 {len(items_to_delete)} 個項目...")
+            # 從主資料列表中移除這些項目
+            self.current_menu_data = [d for d in self.current_menu_data if d not in items_to_delete]
+            self.ui.populate_menu_tree(self.current_menu_data)
+    
+    
+    def on_tree_item_renamed(self, item, column):
+        """當樹狀視圖中的項目文字被使用者編輯後觸發。"""
+        # 為了防止在我們自己刷新UI時觸發無限循環，需要一個旗標來暫時禁用此功能
+        if not self.ui.menu_tree_view.signalsBlocked():
+            
+            # 獲取舊的路徑和新的名稱
+            # 獲取舊路徑比較複雜，我們需要一個方法來從item反向推導
+            # 但更簡單的方法是，在編輯前就記錄下舊的狀態
+            # 這裡我們先用一個簡化的邏輯，假設我們可以拿到舊路徑
+            
+            # 重新思考：一個更穩健的方法是直接在觸發時同步所有資料
+            # 因為我們無法輕易得知「舊的」名稱是什麼
+            
+            log.info("偵測到項目名稱變更，準備同步所有UI狀態...")
+            
+            # 使用我們已經存在的同步函式，它會處理好一切
+            # 因為 get_ordered_data_from_tree 會重新計算所有路徑
+            self._sync_data_from_ui()
+            
+            # 為了讓UI上的顯示（特別是文件夾的路徑）也更新，
+            # 在同步資料後，最好再用更新後的資料刷新一次UI
+            # 為了避免無限循環，我們在刷新前後阻擋/解除信號
+            self.ui.menu_tree_view.blockSignals(True)
+            self.ui.populate_menu_tree(self.current_menu_data)
+            self.ui.menu_tree_view.blockSignals(False)
+            
+            log.info("項目重命名完成，資料與UI已同步。")

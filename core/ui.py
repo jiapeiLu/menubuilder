@@ -30,12 +30,14 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.menu_tree_view = QtWidgets.QTreeWidget()
         self.menu_tree_view.setHeaderLabels(["菜單項 (Menu Item)", "路徑 (Path)"])
         self.menu_tree_view.setColumnWidth(0, 200)
-        #啟用Qt內建拖放功能
+        # 啟用Qt內建拖放功能
         self.menu_tree_view.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
         self.menu_tree_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.menu_tree_view.setDragEnabled(True)
         self.menu_tree_view.setAcceptDrops(True)
         self.menu_tree_view.setDropIndicatorShown(True)
+        # 啟用自訂右鍵選單
+        self.menu_tree_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         left_layout.addWidget(left_label)
         left_layout.addWidget(self.menu_tree_view)
@@ -147,6 +149,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                         parent_ui_item = self.item_map[full_path_key]
                     else:
                         new_parent = QtWidgets.QTreeWidgetItem(parent_ui_item, [part])
+                        new_parent.setFlags(new_parent.flags() | QtCore.Qt.ItemIsEditable) # <-- [新增] 讓文件夾可編輯
                         self.item_map[full_path_key] = new_parent
                         parent_ui_item = new_parent
 
@@ -282,4 +285,49 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         # 將指令填入「手動輸入」框，並切換到該分頁，方便查看和編輯
         self.input_tabs.setCurrentIndex(1)
-        self.manual_cmd_input.setText(data.function_str)                
+        self.manual_cmd_input.setText(data.function_str)    
+
+    def get_path_for_item(self, item: QtWidgets.QTreeWidgetItem) -> str:
+        """輔助函式：獲取一個QTreeWidgetItem的完整層級路徑。"""
+        path = []
+        while item is not None:
+            path.insert(0, item.text(0))
+            item = item.parent()
+        return "/".join(path)
+
+    def on_tree_context_menu(self, point: QtCore.QPoint):
+        """當使用者在樹狀視圖上右鍵點擊時，創建並顯示選單。"""
+        menu = QtWidgets.QMenu(self)
+        
+        # 取得滑鼠點擊位置的項目
+        item = self.menu_tree_view.itemAt(point)
+        
+        if item:
+            # --- 如果點擊在一個項目上 ---
+            item_data = item.data(0, QtCore.Qt.UserRole)
+            item_path = self.get_path_for_item(item)
+
+            # 根據點擊的是「文件夾」還是「菜單項」來決定顯示的內容
+            if item_data: # 這是個菜單項
+                action_edit = menu.addAction("編輯此項目 (Edit)")
+                action_edit.triggered.connect(lambda: self.controller.on_tree_item_double_clicked(item, 0))
+            
+            action_add_under = menu.addAction("在此路徑下新增項目(New)")
+            action_send_path = menu.addAction(f"傳送路徑 '{item_data.sub_menu_path if item_data else item_path}' 至編輯器")
+            menu.addSeparator()
+            action_delete = menu.addAction("刪除...")
+
+            # 連接信號到Controller
+            # 使用 lambda 來傳遞當前點擊的項目或路徑
+            path_to_send = item_data.sub_menu_path if item_data else item_path
+            action_send_path.triggered.connect(lambda: self.controller.on_context_send_path(path_to_send))
+            action_add_under.triggered.connect(lambda: self.controller.on_context_add_under(path_to_send))
+            action_delete.triggered.connect(lambda: self.controller.on_context_delete(item))
+
+        else:
+            # --- 如果點擊在空白處 ---
+            action_add_root = menu.addAction("新增根級菜單...")
+            action_add_root.triggered.connect(lambda: self.controller.on_context_add_under(""))
+
+        # 在滑鼠的位置顯示選單
+        menu.exec_(self.menu_tree_view.mapToGlobal(point))       
