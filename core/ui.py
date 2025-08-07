@@ -3,6 +3,7 @@ from PySide2 import QtWidgets, QtCore, QtGui
 from typing import List
 from .dto import MenuItemData
 from .logger import log
+import maya.cmds as cmds
 
 class MenuBuilderUI(QtWidgets.QMainWindow):
     def __init__(self, controller):
@@ -78,14 +79,46 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.path_input.setPlaceholderText("例如: Tools/Modeling")
         self.order_input = QtWidgets.QSpinBox()
         self.order_input.setRange(0, 999)
-        self.icon_input = QtWidgets.QLineEdit() # 之後會加上瀏覽按鈕
+        # [核心修改] 替換舊的 icon_layout
+        # -----------------------------------------------------------------
+        # -- Icon Group --
+        icon_path_layout = QtWidgets.QHBoxLayout()
+        self.icon_input = QtWidgets.QLineEdit()
+        self.icon_input.setPlaceholderText("輸入路徑或點擊右側按鈕瀏覽...")
+        
+        # 新增兩個按鈕
+        self.icon_browse_btn = QtWidgets.QPushButton("自訂...")
+        self.icon_browse_btn.setToolTip("瀏覽本機的圖示檔案 (e.g., C:/icon.png)")
+        self.icon_buildin_btn = QtWidgets.QPushButton("內建...")
+        self.icon_buildin_btn.setToolTip("瀏覽Maya內建圖示 (e.g., :polyCube.png)")
+
+        icon_path_layout.addWidget(self.icon_input)
+        icon_path_layout.addWidget(self.icon_browse_btn)
+        icon_path_layout.addWidget(self.icon_buildin_btn)
+        
+        # 預覽標籤
+        self.icon_preview = QtWidgets.QLabel()
+        self.icon_preview.setFixedSize(32, 32)
+        self.icon_preview.setStyleSheet("border: 1px solid #555; background-color: #333; border-radius: 4px;")
+        self.icon_preview.setAlignment(QtCore.Qt.AlignCenter)
+        self.icon_preview.setText("無")
+        
+
+        
+        # 預覽更新 訊息
+        self.icon_input.textChanged.connect(self.update_icon_preview)
+        # -----------------------------------------------------------------
+        
         self.dockable_checkbox = QtWidgets.QCheckBox("可停靠介面 (IsDockableUI)")
         self.option_box_checkbox = QtWidgets.QCheckBox("作為選項框 (IsOptionBox)")
 
         form_layout.addRow("菜單標籤 (Label):", self.label_input)
         form_layout.addRow("菜單路徑 (Path):", self.path_input)
         form_layout.addRow("排序順位 (Order):", self.order_input)
-        form_layout.addRow("圖示 (Icon):", self.icon_input)
+        # 將UI元件加入 Form Layout
+        form_layout.addRow("圖示路徑 (Icon):", icon_path_layout)
+        form_layout.addRow("預覽 (Preview):", self.icon_preview)
+        
         form_layout.addRow(self.dockable_checkbox)
         form_layout.addRow(self.option_box_checkbox)
 
@@ -130,33 +163,44 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         
         
     def populate_menu_tree(self, items: List[MenuItemData]):
+        """
+        [重構後] 一個不依賴輸入順序的、穩健的UI樹重建函式。
+        """
+        # 在重建前，阻擋信號，防止觸發不必要的 itemChanged 事件
+        self.menu_tree_view.blockSignals(True)
+        
         self.menu_tree_view.clear()
-        self.item_map.clear() # item_map 仍然用來快速查找父節點 (key: path, value: QTreeWidgetItem)
+        self.item_map.clear()
         
-        # [核心修正] 移除這行 -> items.sort(key=lambda x: x.sub_menu_path)
-        
-        for item_data in items: # 直接遍歷原始順序的列表
+        for item_data in items:
+            # 對每一個項目，都從根節點開始，確保其父級路徑存在
             parent_ui_item = self.menu_tree_view.invisibleRootItem()
             
-            # 建立父級路徑
             if item_data.sub_menu_path:
                 path_parts = item_data.sub_menu_path.split('/')
                 full_path_key = ""
                 for part in path_parts:
                     full_path_key = f"{full_path_key}/{part}" if full_path_key else part
-                    # 查找或創建父級UI節點
+                    
                     if full_path_key in self.item_map:
                         parent_ui_item = self.item_map[full_path_key]
                     else:
+                        # 創建新的父級(文件夾)節點
                         new_parent = QtWidgets.QTreeWidgetItem(parent_ui_item, [part])
-                        new_parent.setFlags(new_parent.flags() | QtCore.Qt.ItemIsEditable) # <-- [新增] 讓文件夾可編輯
+                        new_parent.setFlags(new_parent.flags() | QtCore.Qt.ItemIsEditable)
                         self.item_map[full_path_key] = new_parent
                         parent_ui_item = new_parent
 
             # 創建並附加真正的功能節點
             menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [item_data.menu_label])
-            # 將 MenuItemData 物件附加到 UI 項目上，以便後續掃描
+            # 注意：功能節點本身不可直接在樹上編輯名稱
             menu_qitem.setData(0, QtCore.Qt.UserRole, item_data)
+            # 將功能節點本身也加入 item_map，以便查找
+            final_path = f"{item_data.sub_menu_path}/{item_data.menu_label}" if item_data.sub_menu_path else item_data.menu_label
+            self.item_map[final_path] = menu_qitem
+
+        # 重建完成後，解除信號阻擋
+        self.menu_tree_view.blockSignals(False)
     
     def get_attributes_from_fields(self) -> MenuItemData:
         """從右側面板的所有輸入框中收集資料，並返回一個 MenuItemData 物件。"""
@@ -186,17 +230,15 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         return item_data
         
     def get_expansion_state(self) -> set:
-        """遍歷樹並返回所有已展開項目的路徑集合。"""
+        """[優化後] 遍歷樹並返回所有已展開項目的路徑集合。"""
         expanded_paths = set()
         iterator = QtWidgets.QTreeWidgetItemIterator(self.menu_tree_view)
         while iterator.value():
             item = iterator.value()
-            # 我們用 item_map 中的 key (路徑) 作為唯一識別碼
-            # 檢查 item 是否在 self.item_map 的值中
-            for path, mapped_item in self.item_map.items():
-                if item == mapped_item and item.isExpanded():
-                    expanded_paths.add(path)
-                    break
+            if item.isExpanded():
+                # 直接使用我們已有的輔助函式來獲取路徑，更高效、更準確
+                path = self.get_path_for_item(item)
+                expanded_paths.add(path)
             iterator += 1
         return expanded_paths
         
@@ -331,3 +373,98 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         # 在滑鼠的位置顯示選單
         menu.exec_(self.menu_tree_view.mapToGlobal(point))       
+
+    def update_icon_preview(self, path: str):
+        """根據輸入框的路徑，更新圖示預覽。"""
+        if not path:
+            self.icon_preview.clear()
+            self.icon_preview.setText("無")
+            return
+
+        icon = QtGui.QIcon(path)
+        if icon.isNull():
+            # 如果路徑無效，QIcon會是null
+            self.icon_preview.clear()
+            self.icon_preview.setText("無效")
+        else:
+            # 從QIcon創建一個QPixmap並顯示在QLabel中
+            pixmap = icon.pixmap(32, 32)
+            self.icon_preview.setPixmap(pixmap)
+
+
+class IconBrowserDialog(QtWidgets.QDialog):
+    """一個用於瀏覽和選擇Maya內建圖示的對話框。"""
+    
+    icon_selected = QtCore.Signal(str) # 自訂信號，當使用者選擇圖示後發出
+
+    def __init__(self, parent=None):
+        super(IconBrowserDialog, self).__init__(parent)
+        self.setWindowTitle("Maya Icon Browser")
+        self.setGeometry(400, 400, 500, 600)
+        
+        main_layout = QtWidgets.QVBoxLayout(self)
+        
+        # 搜尋框
+        self.search_input = QtWidgets.QLineEdit()
+        self.search_input.setPlaceholderText("搜尋圖示名稱 (例如: sphere)...")
+        self.search_input.textChanged.connect(self.filter_icons)
+        
+        # 圖示列表
+        self.icon_list_widget = QtWidgets.QListWidget()
+        self.icon_list_widget.setViewMode(QtWidgets.QListWidget.IconMode) # 以圖示模式顯示
+        self.icon_list_widget.setIconSize(QtCore.QSize(32, 32))
+        self.icon_list_widget.setResizeMode(QtWidgets.QListWidget.Adjust)
+        self.icon_list_widget.itemDoubleClicked.connect(self.accept_selection)
+
+        main_layout.addWidget(self.search_input)
+        main_layout.addWidget(self.icon_list_widget)
+
+        # 載入所有圖示
+        self.load_all_icons()
+
+    def load_all_icons(self):
+        """使用 cmds.resourceManager 獲取所有圖示並填充到列表中。"""
+        log.info("正在載入Maya內建圖示...")
+        all_icons = cmds.resourceManager(nameFilter="*.png")
+        
+        # 定義顯示文字的最大長度
+        MAX_TEXT_LENGTH = 5
+
+        for icon_name in sorted(all_icons):
+            resource_path = f":/{icon_name}"
+            
+            # [核心修改] 決定要顯示的文字
+            display_text = icon_name
+            if len(icon_name) > MAX_TEXT_LENGTH:
+                display_text = icon_name[:MAX_TEXT_LENGTH] + "..."
+
+            # 創建列表項，並設置顯示文字
+            list_item = QtWidgets.QListWidgetItem(display_text)
+            list_item.setIcon(QtGui.QIcon(resource_path))
+            
+            # 將完整的、未截斷的名稱儲存在 UserRole 中
+            list_item.setData(QtCore.Qt.UserRole, icon_name)
+            
+            # Tooltip 依然顯示完整名稱，方便使用者查看
+            list_item.setToolTip(icon_name)
+            
+            self.icon_list_widget.addItem(list_item)
+            
+        log.info(f"圖示載入完成，共 {len(all_icons)} 個。")
+
+    def filter_icons(self, text):
+        """根據搜尋框的文字篩選顯示的圖示。"""
+        for i in range(self.icon_list_widget.count()):
+            item = self.icon_list_widget.item(i)
+            # 如果圖示名稱包含搜尋文字 (不分大小寫)，則顯示，否則隱藏
+            is_match = text.lower() in item.text().lower()
+            item.setHidden(not is_match)
+
+    def accept_selection(self, item):
+        """當使用者雙擊一個圖示時觸發。"""
+        selected_icon_name = item.data(QtCore.Qt.UserRole)
+        log.info(f"使用者選擇了圖示: {selected_icon_name}")
+        # 發出自訂信號，將選擇的圖示名稱傳遞出去
+        self.icon_selected.emit(f":/{selected_icon_name}")
+        self.accept() # 關閉對話框
+

@@ -3,7 +3,7 @@ import functools # 導入 functools 以便使用 wraps
 from .logger import log  # 從我們建立的logger模組導入已經配置好的log實例
 #phase1 新增
 from .setting_reader import current_setting
-from .ui import MenuBuilderUI
+from .ui import MenuBuilderUI, IconBrowserDialog
 from .data_handler import DataHandler
 #phase2 新增
 from .script_parser import ScriptParser
@@ -67,21 +67,23 @@ class MenuBuilderController:
         log.debug("正在進行初次信號連接...")
         self.ui.browse_button.clicked.connect(self.on_browse_script_clicked)
         self.ui.function_list.currentItemChanged.connect(self.on_function_selected)
+        self.ui.icon_buildin_btn.clicked.connect(self.on_browse_icon_clicked)
+        self.ui.icon_browse_btn.clicked.connect(self.on_browse_custom_icon_clicked) #[新增] 連接圖示瀏覽按鈕的點擊信號
         self.ui.add_update_button.clicked.connect(self.on_add_item_clicked)
         self.ui.delete_button.clicked.connect(self.on_delete_item_clicked)
         self.ui.build_menus_button.clicked.connect(self.on_build_menu_clicked)
         self.ui.menu_tree_view.itemDoubleClicked.connect(self.on_tree_item_double_clicked)
         self.ui.menu_tree_view.customContextMenuRequested.connect(self.ui.on_tree_context_menu)
-        self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed) # [新增] 連接項目變更(編輯完成)的信號
+        self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed) # 連接項目變更(編輯完成)的信號
         
-        # [新增] 連接檔案菜單的動作
+        # 連接檔案菜單的動作
         self.ui.open_action.triggered.connect(self.on_file_open)
         self.ui.merge_action.triggered.connect(self.on_file_merge)
         self.ui.save_action.triggered.connect(self.on_save_config_clicked)
         self.ui.save_as_action.triggered.connect(self.on_file_save_as)
         self.ui.exit_action.triggered.connect(self.ui.close) # 直接連接到視窗的關閉方法
 
-        # [新增] 在所有連接完成後，將旗標設為 True
+        # 在所有連接完成後，將旗標設為 True
         self._signals_connected = True
         log.debug("信號連接完成。")
         
@@ -361,17 +363,16 @@ class MenuBuilderController:
         """接收來自右鍵選單的路徑，並更新到UI輸入框中。"""
         log.debug(f"從右鍵選單接收到路徑: {path}")
         self.ui.path_input.setText(path)
-        # 順便清空標籤和指令，準備新增
-        self.ui.label_input.clear()
-        self.ui.manual_cmd_input.clear()
-        self.current_edit_item_data = None
-        self.ui.add_update_button.setText("新增至結構")
-
 
     def on_context_add_under(self, parent_path: str):
         """在指定的父路徑下準備新增一個項目。"""
         log.debug(f"準備在 '{parent_path}' 下新增項目。")
         self.on_context_send_path(parent_path) # 直接復用上面的函式來清空和設定路徑
+        # 將清空項目移到從 send path 到 add under
+        self.ui.label_input.clear()
+        self.ui.manual_cmd_input.clear()
+        self.current_edit_item_data = None
+        self.ui.add_update_button.setText("新增至結構")
         self.ui.label_input.setFocus() # 將游標焦點設在標籤輸入框，方便使用者輸入
 
     @preserve_ui_state
@@ -443,3 +444,34 @@ class MenuBuilderController:
             self.ui.menu_tree_view.blockSignals(False)
             
             log.info("項目重命名完成，資料與UI已同步。")
+            
+    def on_browse_icon_clicked(self):
+        """當'瀏覽圖示'按鈕被點擊時，創建並顯示圖示瀏覽器。"""
+        log.debug("開啟圖示瀏覽器...")
+        # 將主UI視窗 (self.ui) 作為父級傳遞給對話框
+        icon_browser = IconBrowserDialog(self.ui)
+        
+        # [核心] 連接對話框的自訂信號到Controller的處理函式上
+        icon_browser.icon_selected.connect(self.on_icon_selected_from_browser)
+        
+        # 以非阻塞模式執行對話框
+        icon_browser.exec_()
+
+    def on_browse_custom_icon_clicked(self):
+        """處理'瀏覽自訂圖示'按鈕的點擊事件。"""
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self.ui, 
+            "選擇自訂圖示檔案", 
+            "", 
+            "Image Files (*.png *.svg *.jpg *.bmp)"
+        )
+        if file_path:
+            # 將選擇的檔案路徑設定到輸入框中
+            # textChanged 信號會自動觸發預覽更新
+            self.ui.icon_input.setText(file_path)
+            log.info(f"選擇了自訂圖示: {file_path}")
+
+    def on_icon_selected_from_browser(self, icon_path: str):
+        """當圖示瀏覽器發出'icon_selected'信號時，接收圖示路徑並更新UI。"""
+        log.debug(f"接收到選擇的圖示路徑: {icon_path}")
+        self.ui.icon_input.setText(icon_path)
