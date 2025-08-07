@@ -172,13 +172,36 @@ class MenuBuilderController:
             log.info(f"已刪除菜單項: {item_to_remove.menu_label}")
             self.ui.populate_menu_tree(self.current_menu_data)
 
+    #[新增] 同步資料
+    def _sync_data_from_ui(self):
+        """核心同步函式：從UI掃描最新狀態，並更新記憶體中的資料列表。"""
+        log.debug("從 UI 同步資料...")
+        ordered_data_from_ui = self.ui.get_ordered_data_from_tree()
+        
+        # [核心] 更新 self.current_menu_data 和每個項目的 order
+        # 我們不僅要更新列表，還要更新每個item的order值，以便儲存
+        final_data_list = []
+        for i, item_data in enumerate(ordered_data_from_ui):
+            item_data.order = (i + 1) * 10 # 重新計算 order 值
+            final_data_list.append(item_data)
+        
+        self.current_menu_data = final_data_list
+        log.debug("資料同步完成。")
+
     def on_save_config_clicked(self):
         """儲存當前的菜單結構到檔案。"""
-        config_name = current_setting.get("menuitems") # 從設定檔取得要儲存的檔名
+        # 1. 先從UI同步最新的順序和結構
+        self._sync_data_from_ui()
+        
+        # 2. 再使用更新後的資料進行儲存
+        config_name = current_setting.get("menuitems")
         self.data_handler.save_menu_config(config_name, self.current_menu_data)
 
     def on_build_menu_clicked(self):
         """當'生成/刷新菜單'按鈕被點擊時觸發。"""
+        
+        # 0. 先從UI同步最新的順序和結構
+        self._sync_data_from_ui()
         log.info("開始生成/刷新 Maya 菜單...")
         
         # 1. 清除舊菜單

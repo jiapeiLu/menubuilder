@@ -42,7 +42,7 @@ class MenuGenerator:
             return
         
         # 排序對於建立過程至關重要
-        sorted_data = sorted(data, key=lambda x: (x.sub_menu_path, x.order))
+        sorted_data = sorted(data, key=lambda x: (x.order))
         gMainWindow = mel.eval('$tmpVar=$gMainWindow')
         
         # 緩存將儲存每個路徑對應的父級菜單UI名稱

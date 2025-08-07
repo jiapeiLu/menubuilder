@@ -2,6 +2,7 @@
 from PySide2 import QtWidgets, QtCore, QtGui
 from typing import List
 from .dto import MenuItemData
+from .logger import log
 
 class MenuBuilderUI(QtWidgets.QMainWindow):
     def __init__(self, controller):
@@ -29,6 +30,12 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.menu_tree_view = QtWidgets.QTreeWidget()
         self.menu_tree_view.setHeaderLabels(["菜單項 (Menu Item)", "路徑 (Path)"])
         self.menu_tree_view.setColumnWidth(0, 200)
+        #啟用Qt內建拖放功能
+        self.menu_tree_view.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+        self.menu_tree_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.menu_tree_view.setDragEnabled(True)
+        self.menu_tree_view.setAcceptDrops(True)
+        self.menu_tree_view.setDropIndicatorShown(True)
         
         left_layout.addWidget(left_label)
         left_layout.addWidget(self.menu_tree_view)
@@ -104,35 +111,32 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         main_layout.addWidget(right_widget, stretch=1)
         
     def populate_menu_tree(self, items: List[MenuItemData]):
-        """用載入的資料填充左側的樹狀視圖。"""
         self.menu_tree_view.clear()
-        self.item_map.clear()
+        self.item_map.clear() # item_map 仍然用來快速查找父節點 (key: path, value: QTreeWidgetItem)
         
-        # 為了能建立層級，先按路徑排序
-        items.sort(key=lambda x: x.sub_menu_path)
+        # [核心修正] 移除這行 -> items.sort(key=lambda x: x.sub_menu_path)
         
-        for item in items:
-            path_parts = item.sub_menu_path.split('/')
-            parent_item = self.menu_tree_view.invisibleRootItem()
-
-            # 遞迴查找或創建父節點
-            current_path = ""
-            for part in path_parts:
-                if not part: continue
-                current_path = f"{current_path}/{part}" if current_path else part
-                
-                found_item = self.item_map.get(current_path)
-                if found_item:
-                    parent_item = found_item
-                else:
-                    new_parent_item = QtWidgets.QTreeWidgetItem(parent_item, [part])
-                    self.item_map[current_path] = new_parent_item
-                    parent_item = new_parent_item
+        for item_data in items: # 直接遍歷原始順序的列表
+            parent_ui_item = self.menu_tree_view.invisibleRootItem()
             
-            # 創建最終的菜單項
-            menu_qitem = QtWidgets.QTreeWidgetItem(parent_item, [item.menu_label, item.sub_menu_path])
-            if item.icon_path:
-                menu_qitem.setIcon(0, QtGui.QIcon(item.icon_path))
+            # 建立父級路徑
+            if item_data.sub_menu_path:
+                path_parts = item_data.sub_menu_path.split('/')
+                full_path_key = ""
+                for part in path_parts:
+                    full_path_key = f"{full_path_key}/{part}" if full_path_key else part
+                    # 查找或創建父級UI節點
+                    if full_path_key in self.item_map:
+                        parent_ui_item = self.item_map[full_path_key]
+                    else:
+                        new_parent = QtWidgets.QTreeWidgetItem(parent_ui_item, [part])
+                        self.item_map[full_path_key] = new_parent
+                        parent_ui_item = new_parent
+
+            # 創建並附加真正的功能節點
+            menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [item_data.menu_label])
+            # 將 MenuItemData 物件附加到 UI 項目上，以便後續掃描
+            menu_qitem.setData(0, QtCore.Qt.UserRole, item_data)
     
     def get_attributes_from_fields(self) -> MenuItemData:
         """從右側面板的所有輸入框中收集資料，並返回一個 MenuItemData 物件。"""
@@ -175,7 +179,66 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                     break
             iterator += 1
         return expanded_paths
+        
+    def get_ordered_data_from_tree(self) -> List[MenuItemData]:
+        """
+        公開方法：從樹狀視圖的根開始，遞迴掃描所有項目，
+        並返回一個完全按照UI顯示順序排序、且路徑已更新的 MenuItemData 列表。
+        """
+        log.info("從UI樹狀視圖掃描並生成有序的資料列表...")
+        ordered_list = []
+        # 從看不見的根節點開始，初始路徑為空字串 ""
+        self._recursive_tree_walk(self.menu_tree_view.invisibleRootItem(), "", ordered_list)
+        log.info(f"掃描完成，共獲取 {len(ordered_list)} 個項目。")
+        return ordered_list
 
+    def _recursive_tree_walk(self, parent_item: QtWidgets.QTreeWidgetItem, parent_path: str, ordered_list: List[MenuItemData]):
+        """
+        私有輔助方法：遞迴地遍歷一個父節點下的所有子節點。
+        
+        Args:
+            parent_item: 當前遍歷的父級QTreeWidgetItem。
+            parent_path: 父級的菜單路徑 (e.g., "Tools/Modeling")。
+            ordered_list: 用於收集結果的列表。
+        """
+        # childCount() 和 child(i) 會自然地按照從上到下的視覺順序遍歷
+        for i in range(parent_item.childCount()):
+            child_item = parent_item.child(i)
+            
+            # 從UI項目中取回我們之前用 setData 儲存的 MenuItemData 物件
+            item_data = child_item.data(0, QtCore.Qt.UserRole)
+            
+            # 取得當前項目的顯示名稱 (它可能是菜單項的標籤，也可能是文件夾的名稱)
+            current_item_text = child_item.text(0)
+            
+            # 組合出當前這個UI項目的完整路徑
+            # 如果父路徑為空，則當前路徑就是它自己的名字；否則進行拼接
+            current_path = f"{parent_path}/{current_item_text}" if parent_path else current_item_text
+            
+            if item_data:
+                # [核心] 如果這個UI項目是一個真正的菜單項 (存有我們的data)
+                
+                # 1. 更新它的 sub_menu_path，以反映它在UI中被拖放後的新位置
+                item_data.sub_menu_path = parent_path
+                
+                # 2. 將更新後的資料物件加入到結果列表中
+                ordered_list.append(item_data)
+
+            # 繼續遞迴深入下一層，不論當前節點是文件夾還是菜單項，
+            # 只要它有子節點，就繼續遍歷。
+            if child_item.childCount() > 0:
+                # 當遞迴進入下一層時，當前項目的路徑就變成了子項目的父路徑
+                # 注意：這裡我們傳遞的是 current_path，這是純粹由UI結構決定的路徑
+                # 這一步是為了處理那些純粹作為文件夾，自身不帶 MenuItemData 的節點
+                # 但我們的邏輯中，文件夾和菜單項的路徑更新方式是一樣的，所以可以簡化
+                # 我們需要找到代表這個文件夾的 path
+                
+                # 修正：子項目的父路徑就是當前項目的路徑
+                # 如果當前是個菜單項，其子項目的父路徑應為其自身的sub_menu_path + label
+                # 如果當前是個文件夾，其子項目的父路徑應為其自身的路徑
+                # 最簡單的方式是直接使用上面組合好的 current_path
+                self._recursive_tree_walk(child_item, current_path, ordered_list)
+                
     def set_expansion_state(self, expanded_paths: set):
         """根據提供的路徑集合，展開對應的項目。"""
         if not expanded_paths:
