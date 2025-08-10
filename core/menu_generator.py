@@ -28,37 +28,34 @@ class MenuGenerator:
         cmds.optionVar(remove=OPTIONVAR_KEY)
 
     def _generate_command_string(self, item: MenuItemData) -> str:
-        """根據 MenuItemData 生成可執行的 command 字串。"""
         original_command = item.function_str.strip()
-
-        if item.is_dockable and original_command.startswith("dockable:"):
-            log.debug(f"為 '{item.menu_label}' 生成 DockableUILauncher 指令。")
-            
-            ui_source_command = original_command.replace("dockable:", "", 1).strip()
-            
-            # [核心修正] 轉義所有特殊字元，特別是換行符
-            ui_source_command_escaped = ui_source_command.replace('\n', ';')
-
+        '''disable dockable
+        if item.is_dockable:
+            log.debug(f"為 '{item.menu_label}' 解析 Dockable 啟動資料。")
             ui_name = f"{item.menu_label.replace(' ','_')}_{item.order}_wsControl"
             ui_label = item.menu_label
 
-            code_lines = [
-                "from menubuilder.core.ui_dockable import DockableUILauncher",
-                # reload 的邏輯可以簡化，因為ui_dockable 不常變動
-                f"{ui_label}launcher = DockableUILauncher(UI_NAME='{ui_name}', UI_LABEL='{ui_label}', UI_SOURCE={ui_source_command_escaped!r})",
-                f"{ui_label}launcher.show()"
-            ]
-            
-            return "; ".join(code_lines)
+            # 解析模組名和函式名 (現在是固定的格式)
+            callable_line = original_command.strip().split('\n')[-1].strip()
+            parts = callable_line.split('.')
+            module_name = parts[0]
+            func_name = parts[1].replace('()', '')
 
-        elif original_command.lower().startswith("mel:"):
+            # 生成簡單、乾淨的函式呼叫指令
+            wrapped_command = (
+                f"from menubuilder.core.ui_dockable import launch_dockable_from_data; "
+                f"launch_dockable_from_data(ui_name='{ui_name}', ui_label='{ui_label}', module_name='{module_name}', func_name='{func_name}')"
+            )
+            return wrapped_command'''
+
+        # --- 處理 MEL 或普通 Python 指令 (邏輯不變) ---
+        if original_command.lower().startswith("mel:"):
             mel_command = original_command.replace("mel:", "", 1).strip()
             return f'mel.eval("{mel_command}")'
         else:
             return original_command
-
+        
     def build_from_config(self, data: List[MenuItemData]):
-        # ... build_from_config() 方法不變 ...
         if not data:
             log.warning("沒有可建立的菜單資料。")
             return
@@ -84,11 +81,8 @@ class MenuGenerator:
                         if i == 0:
                             new_menu_parent = cmds.menu(part, parent=parent, tearOff=True)
                             cmds.optionVar(stringValueAppend=(OPTIONVAR_KEY, new_menu_parent))
-                            log.debug(f"建立頂層菜單: {part} -> {new_menu_parent}")
                         else:
                             new_menu_parent = cmds.menuItem(label=part, subMenu=True, parent=parent, tearOff=True)
-                            log.debug(f"建立子菜單: {part} -> {new_menu_parent}")
-
                         parent_menu_cache[full_path_key] = new_menu_parent
                         parent = new_menu_parent
             

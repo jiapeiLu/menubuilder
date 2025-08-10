@@ -75,7 +75,7 @@ class MenuBuilderController:
         self.ui.menu_tree_view.itemDoubleClicked.connect(self.on_tree_item_double_clicked)
         self.ui.menu_tree_view.customContextMenuRequested.connect(self.ui.on_tree_context_menu)
         self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed) # 連接項目變更(編輯完成)的信號
-        
+        #self.ui.dockable_checkbox.stateChanged.connect(self.on_dockable_checkbox_changed)
         # 連接檔案菜單的動作
         self.ui.open_action.triggered.connect(self.on_file_open)
         self.ui.merge_action.triggered.connect(self.on_file_merge)
@@ -112,13 +112,20 @@ class MenuBuilderController:
 
     def on_browse_script_clicked(self):
         """當瀏覽按鈕被點擊時觸發。"""
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "選擇 Python 腳本", "", "Python Files (*.py)")
+        start_dir = ""
+        if self.current_selected_script_path:
+            start_dir = os.path.dirname(self.current_selected_script_path)
+
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "選擇 Python 腳本", start_dir, "Python Files (*.py)")
+        
         if not file_path:
-            self.current_selected_script_path = None # <-- [新增] 如果取消選擇，則清空路徑
+            self.current_selected_script_path = None
+            self.ui.current_script_path_label.clear()
             return
             
-        self.current_selected_script_path = file_path # <-- [新增] 儲存選擇的路徑
-            
+        self.current_selected_script_path = file_path
+        self.ui.current_script_path_label.setText(file_path)
+        
         self.ui.function_list.clear()
         functions = ScriptParser.parse_py_file(file_path)
         self.ui.function_list.addItems(functions)
@@ -165,44 +172,24 @@ class MenuBuilderController:
         
         log.debug(f"已生成指令並填入UI: {command_to_run}")
 
-    @preserve_ui_state # <-- 應用裝飾器
-    def on_add_item_clicked(self):
-        """將右側編輯器的內容轉換為一個新的菜單項並加入。"""
-        # 1. 從UI收集資料
-        # (需要先在ui.py中實現 get_attributes_from_fields 方法)
-        new_item_data = self.ui.get_attributes_from_fields() 
-        
-        # 2. 加入到記憶體的列表中
-        self.current_menu_data.append(new_item_data)
-        log.info(f"新增菜單項: {new_item_data.menu_label}")
-        
-        # 3. 刷新UI
-        self.ui.populate_menu_tree(self.current_menu_data)
-
-    @preserve_ui_state # <-- 應用裝飾器
+    @preserve_ui_state
     def on_delete_item_clicked(self):
-        """刪除左側樹狀視圖中當前選擇的項目。"""
-        # (這部分邏輯較複雜，需要先在UI中確定如何識別被選中的項目)
-        # (一個簡單的實現是基於 label 和 path 來查找並刪除)
+        """[優化後] 刪除左側樹狀視圖中當前選擇的項目。"""
         selected_items = self.ui.menu_tree_view.selectedItems()
         if not selected_items:
             log.warning("請先在左側列表中選擇要刪除的項目。")
             return
             
-        # 這裡只處理單選刪除
-        selected_label = selected_items[0].text(0)
+        # 從UI項目中直接獲取關聯的 MenuItemData 物件
+        item_to_remove_data = selected_items[0].data(0, QtCore.Qt.UserRole)
         
-        # 從 self.current_menu_data 中找到並移除對應的項目
-        item_to_remove = None
-        for item in self.current_menu_data:
-            if item.menu_label == selected_label: # 這裡的匹配邏輯可以做得更精確
-                item_to_remove = item
-                break
-                
-        if item_to_remove:
-            self.current_menu_data.remove(item_to_remove)
-            log.info(f"已刪除菜單項: {item_to_remove.menu_label}")
+        if item_to_remove_data:
+            # 從 self.current_menu_data 中找到並移除同一個物件實例
+            self.current_menu_data.remove(item_to_remove_data)
+            log.info(f"已刪除菜單項: {item_to_remove_data.menu_label}")
             self.ui.populate_menu_tree(self.current_menu_data)
+        else:
+            log.warning("無法刪除，所選項目是一個文件夾或沒有關聯資料。請使用右鍵選單刪除文件夾。")
 
         #[新增] 同步資料
     def _sync_data_from_ui(self):
@@ -327,24 +314,26 @@ class MenuBuilderController:
     @preserve_ui_state
     def on_add_item_clicked(self):
         """
-        處理'新增/更新'按鈕的點擊事件。
-        如果當前有正在編輯的項目，則執行更新；否則執行新增。
+        [優化後] 處理'新增/更新'按鈕的點擊事件。
         """
-        # 從UI面板獲取當前所有欄位的資料
         edited_data = self.ui.get_attributes_from_fields()
         if not edited_data.menu_label or not edited_data.function_str:
             log.warning("請確保'菜單標籤'和'指令'欄位不為空。")
             return
 
+        # 先從UI同步最新的資料狀態
+        self._sync_data_from_ui()
+
         if self.current_edit_item_data:
             # --- 執行更新邏輯 ---
             log.info(f"更新項目 '{self.current_edit_item_data.menu_label}'...")
             # 直接修改記憶體中原有的 MenuItemData 物件的屬性
+            # 因為 item_data 是 class 物件，這裡是引用，所以修改會生效
             self.current_edit_item_data.menu_label = edited_data.menu_label
             self.current_edit_item_data.sub_menu_path = edited_data.sub_menu_path
             self.current_edit_item_data.order = edited_data.order
             self.current_edit_item_data.icon_path = edited_data.icon_path
-            self.current_edit_item_data.is_dockable = edited_data.is_dockable
+            #self.current_edit_item_data.is_dockable = edited_data.is_dockable
             self.current_edit_item_data.is_option_box = edited_data.is_option_box
             self.current_edit_item_data.function_str = edited_data.function_str
             
@@ -356,7 +345,7 @@ class MenuBuilderController:
             self.current_menu_data.append(edited_data)
             log.info(f"新增菜單項: {edited_data.menu_label}")
         
-        # 最後，無論是新增還是更新，都刷新整個UI樹
+        # 最後，無論是新增還是更新，都用更新後的 self.current_menu_data 刷新整個UI樹
         self.ui.populate_menu_tree(self.current_menu_data)
 
     def on_context_send_path(self, path: str):
@@ -375,18 +364,27 @@ class MenuBuilderController:
         self.ui.add_update_button.setText("新增至結構")
         self.ui.label_input.setFocus() # 將游標焦點設在標籤輸入框，方便使用者輸入
 
+
     @preserve_ui_state
     def on_context_delete(self, item: QtWidgets.QTreeWidgetItem):
-        """處理刪除操作，可能是單一項目或整個文件夾。"""
-        item_data = item.data(0, QtCore.Qt.UserRole)
+        """[修正後] 處理刪除操作，可能是單一項目或整個文件夾。"""
+        # 安全檢查，確保傳入的是正確的物件類型
+        if not isinstance(item, QtWidgets.QTreeWidgetItem):
+            log.error(f"刪除操作收到了錯誤的物件類型: {type(item)}")
+            return
+
         item_path = self.ui.get_path_for_item(item)
+        item_data = item.data(0, QtCore.Qt.UserRole)
         
         items_to_delete = []
         
-        # 先同步一次資料，確保 self.current_menu_data 是最新的
+        # 先從UI同步一次資料，確保 self.current_menu_data 是最新的
         self._sync_data_from_ui()
 
-        if item.childCount() > 0:
+        # 判斷是文件夾還是單一項目
+        is_folder = item.childCount() > 0 or not item_data
+
+        if is_folder:
             # --- 刪除整個文件夾 ---
             reply = QtWidgets.QMessageBox.question(
                 self.ui, '確認刪除', 
@@ -395,14 +393,13 @@ class MenuBuilderController:
                 QtWidgets.QMessageBox.No
             )
             if reply == QtWidgets.QMessageBox.No:
-                return # 使用者取消操作
+                return
             
-            # 找出所有路徑符合的項目 (包括自身和所有子項目)
+            # 找出所有路徑符合的項目
             items_to_delete = [
                 data for data in self.current_menu_data 
                 if data.sub_menu_path == item_path or data.sub_menu_path.startswith(item_path + '/')
             ]
-            # 如果點擊的文件夾本身是一個功能項，也把它加進去
             if item_data and item_data not in items_to_delete:
                 items_to_delete.append(item_data)
         else:
@@ -412,7 +409,6 @@ class MenuBuilderController:
         
         if items_to_delete:
             log.info(f"準備刪除 {len(items_to_delete)} 個項目...")
-            # 從主資料列表中移除這些項目
             self.current_menu_data = [d for d in self.current_menu_data if d not in items_to_delete]
             self.ui.populate_menu_tree(self.current_menu_data)
     
@@ -475,3 +471,72 @@ class MenuBuilderController:
         """當圖示瀏覽器發出'icon_selected'信號時，接收圖示路徑並更新UI。"""
         log.debug(f"接收到選擇的圖示路徑: {icon_path}")
         self.ui.icon_input.setText(icon_path)
+
+    ''' disable dockable
+    def _setup_dockable_ui_mode(self) -> bool:
+        """
+        [新增] 處理所有進入'Dockable模式'的共享邏輯。
+        包含驗證、自動填寫標籤和指令。
+        返回操作是否成功。
+        """
+        # 1. 驗證前提：是否已載入腳本
+        if not self.current_selected_script_path:
+            QtWidgets.QMessageBox.warning(self.ui, "操作無效", "請先使用『瀏覽腳本檔案』按鈕選擇一個 .py 檔。")
+            return False
+
+        # 2. 驗證契約：腳本是否包含 for_dockable_layout()
+        if ScriptParser.has_dockable_interface(self.current_selected_script_path):
+            # --- 驗證通過，設定UI ---
+            module_name = Path(self.current_selected_script_path).stem
+            
+            # 自動生成並設定 Label
+            generated_label = ScriptParser.generate_label_from_string(module_name)
+            self.ui.label_input.setText(generated_label)
+            
+            # 自動生成並設定 Command
+            required_func_name = "for_dockable_layout"
+            command_to_run = (
+                f"import {module_name}\n"
+                f"from importlib import reload\n"
+                f"reload({module_name})\n"
+                f"{module_name}.{required_func_name}()"
+            )
+            self.ui.input_tabs.setCurrentIndex(1)
+            self.ui.manual_cmd_input.setText(command_to_run)
+            self.ui.manual_cmd_input.setReadOnly(True)
+            self.ui.input_tabs.setTabEnabled(0, False)
+            log.debug("已成功設定為 Dockable 模式。")
+            return True
+        else:
+            # --- 驗證失敗，提示使用者 ---
+            QtWidgets.QMessageBox.warning(self.ui, "不相容的腳本", 
+                f"'{Path(self.current_selected_script_path).name}' 不符合可停靠UI的標準。\n\n"
+                f"請確保該腳本中包含一個名為 for_dockable_layout() 的函式。\n\n"
+                f"詳情請參考 README 文件中的範例。")
+            return False
+
+
+    def on_dockable_checkbox_changed(self, state):
+        """[重構後] 當'可停靠介面'核取方塊的狀態改變時觸發。"""
+        if state > 0: # 嘗試勾選
+            success = self._setup_dockable_ui_mode()
+            if not success:
+                # 如果設定失敗（例如驗證不通過），強制取消勾選
+                self.ui.dockable_checkbox.setChecked(False)
+        else: # 取消勾選
+            self.ui.manual_cmd_input.setReadOnly(False)
+            self.ui.input_tabs.setTabEnabled(0, True)
+    
+
+    def on_context_add_dockable(self, parent_path: str):
+        """[重構後] 右鍵選單：準備新增一個可停靠項目。"""
+        log.debug(f"準備在 '{parent_path}' 下新增可停靠項目。")
+
+        # 呼叫共享的設定函式
+        success = self._setup_dockable_ui_mode()
+        
+        if success:
+            # 如果成功，則設定路徑並將焦點設定到標籤輸入框
+            self.ui.dockable_checkbox.setChecked(True)
+            self.ui.path_input.setText(parent_path)
+            self.ui.label_input.setFocus()'''

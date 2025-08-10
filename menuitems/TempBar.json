@@ -11,7 +11,7 @@
     },
     {
         "sub_menu_path": "Tools/Animation",
-        "order": 0,
+        "order": 20,
         "function_str": "setPlayBack",
         "menu_label": "Set Play Back",
         "module_path": "",
@@ -21,7 +21,7 @@
     },
     {
         "sub_menu_path": "Tools/Animation",
-        "order": 0,
+        "order": 30,
         "function_str": "cmds.joint()",
         "menu_label": "Set Play Back",
         "module_path": "",
@@ -31,12 +31,52 @@
     },
     {
         "sub_menu_path": "Tools/Modeling",
-        "order": 10,
+        "order": 40,
         "function_str": "cmds.polySphere()",
         "menu_label": "Create Sphere",
         "module_path": "",
         "icon_path": "",
         "is_dockable": false,
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Tools/Modeling",
+        "order": 50,
+        "function_str": "dockable:import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\nvtxMatch.main()",
+        "menu_label": "Main",
+        "module_path": "",
+        "icon_path": "",
+        "is_dockable": true,
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Tools/Modeling",
+        "order": 60,
+        "function_str": "import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\nvtxMatch.layout()",
+        "menu_label": "Layout",
+        "module_path": "",
+        "icon_path": "",
+        "is_dockable": true,
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Tools/Modeling",
+        "order": 70,
+        "function_str": "import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\n\ncmds.workspaceControl(\n            'tset', label='test_label', uiScript=vtxMatch.for_dockable_layout(),\n            retain=False, floating=True, initialWidth=350, initialHeight=200\n        )",
+        "menu_label": "Vtx Match",
+        "module_path": "",
+        "icon_path": "",
+        "is_dockable": false,
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Tools/Modeling",
+        "order": 80,
+        "function_str": "import vtxMatch_pyside\nfrom importlib import reload\nreload(vtxMatch_pyside)\nvtxMatch_pyside.for_dockable_layout()",
+        "menu_label": "Vtx Match Pyside",
+        "module_path": "",
+        "icon_path": "",
+        "is_dockable": true,
         "is_option_box": false
     }
 ]

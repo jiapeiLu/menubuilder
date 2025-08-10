@@ -1,6 +1,7 @@
 # core/script_parser.py
 import ast
 import re
+from .logger import log
 
 class ScriptParser:
     """一個無狀態的工具類，提供解析功能。"""
@@ -64,3 +65,29 @@ class ScriptParser:
         
         # 3. 首字母大寫並清理
         return ' '.join(word.capitalize() for word in spaced_cmd.split()).strip()
+    '''disable dockable
+    @staticmethod
+    def has_dockable_interface(file_path: str) -> bool:
+        """
+        檢查指定的Python腳本檔案是否包含 'for_dockable_layout' 函式。
+        這是我們與使用者腳本之間的「契約」。
+        """
+        if not file_path:
+            return False
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 使用正則表達式快速、寬容地進行檢查
+            pattern = re.compile(r'^\s*def\s+for_dockable_layout\s*\(\s*\):', re.MULTILINE)
+            if pattern.search(content):
+                log.debug(f"在 '{file_path}' 中找到 'for_dockable_layout' 介面。")
+                return True
+            else:
+                log.debug(f"在 '{file_path}' 中未找到 'for_dockable_layout' 介面。")
+                return False
+        except Exception as e:
+            log.error(f"檢查 dockable 介面時出錯: {e}")
+            return False'''
+        
+

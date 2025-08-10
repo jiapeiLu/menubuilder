@@ -11,7 +11,7 @@ class MenuItemData:
     menu_label: str = ""
     module_path: str = ""
     icon_path: str = ""
-    is_dockable: bool = False
+    #is_dockable: bool = False
     is_option_box: bool = False
 
     @classmethod

@@ -4,6 +4,7 @@ from typing import List
 from .dto import MenuItemData
 from .logger import log
 import maya.cmds as cmds
+import functools
 
 class MenuBuilderUI(QtWidgets.QMainWindow):
     def __init__(self, controller):
@@ -60,8 +61,14 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         file_parse_layout = QtWidgets.QVBoxLayout(file_parse_widget)
         # ... (Add browse button and function list here)
         self.browse_button = QtWidgets.QPushButton("瀏覽腳本檔案...")
+        # [新增] 用於顯示當前腳本路徑的資訊列
+        self.current_script_path_label = QtWidgets.QLineEdit()
+        self.current_script_path_label.setReadOnly(True) # 設為唯讀，僅供顯示
+        self.current_script_path_label.setStyleSheet("background-color: #2E2E2E; border: none;") # 美化一下外觀
+
         self.function_list = QtWidgets.QListWidget()
         file_parse_layout.addWidget(self.browse_button)
+        file_parse_layout.addWidget(self.current_script_path_label) # [新增] 將資訊列加入佈局
         file_parse_layout.addWidget(self.function_list)
 
         # -- Tab 2: Manual Input Layout --
@@ -338,41 +345,56 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         return "/".join(path)
 
     def on_tree_context_menu(self, point: QtCore.QPoint):
-        """當使用者在樹狀視圖上右鍵點擊時，創建並顯示選單。"""
+        """[簡化後] 當使用者在樹狀視圖上右鍵點擊時，創建並顯示選單。"""
         menu = QtWidgets.QMenu(self)
-        
-        # 取得滑鼠點擊位置的項目
         item = self.menu_tree_view.itemAt(point)
-        
+
         if item:
             # --- 如果點擊在一個項目上 ---
             item_data = item.data(0, QtCore.Qt.UserRole)
-            item_path = self.get_path_for_item(item)
+            path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
 
-            # 根據點擊的是「文件夾」還是「菜單項」來決定顯示的內容
-            if item_data: # 這是個菜單項
+            if item_data:
                 action_edit = menu.addAction("編輯此項目 (Edit)")
-                action_edit.triggered.connect(lambda: self.controller.on_tree_item_double_clicked(item, 0))
+                action_edit.triggered.connect(
+                    functools.partial(self.controller.on_tree_item_double_clicked, item, 0)
+                )
             
-            action_add_under = menu.addAction("在此路徑下新增項目(New)")
-            action_send_path = menu.addAction(f"傳送路徑 '{item_data.sub_menu_path if item_data else item_path}' 至編輯器")
             menu.addSeparator()
-            action_delete = menu.addAction("刪除...")
 
-            # 連接信號到Controller
-            # 使用 lambda 來傳遞當前點擊的項目或路徑
-            path_to_send = item_data.sub_menu_path if item_data else item_path
-            action_send_path.triggered.connect(lambda: self.controller.on_context_send_path(path_to_send))
-            action_add_under.triggered.connect(lambda: self.controller.on_context_add_under(path_to_send))
-            action_delete.triggered.connect(lambda: self.controller.on_context_delete(item))
+            action_add_under = menu.addAction("在此路徑下新增項目...")
+            action_add_under.triggered.connect(
+                functools.partial(self.controller.on_context_add_under, path_for_actions)
+            )
+
+            # [核心修改] 刪除以下兩行
+            # action_add_dockable = menu.addAction("在此路徑下新增可停靠項目...")
+            # action_add_dockable.triggered.connect(...)
+
+            menu.addSeparator()
+
+            action_send_path = menu.addAction(f"傳送路徑 '{path_for_actions}' 至編輯器")
+            action_send_path.triggered.connect(
+                functools.partial(self.controller.on_context_send_path, path_for_actions)
+            )
+            
+            action_delete = menu.addAction("刪除...")
+            action_delete.triggered.connect(
+                functools.partial(self.controller.on_context_delete, item)
+            )
 
         else:
             # --- 如果點擊在空白處 ---
-            action_add_root = menu.addAction("新增根級菜單...")
-            action_add_root.triggered.connect(lambda: self.controller.on_context_add_under(""))
+            action_add_root = menu.addAction("新增根級項目...")
+            action_add_root.triggered.connect(
+                functools.partial(self.controller.on_context_add_under, "")
+            )
 
-        # 在滑鼠的位置顯示選單
-        menu.exec_(self.menu_tree_view.mapToGlobal(point))       
+            # [核心修改] 刪除以下兩行
+            # action_add_dockable_root = menu.addAction("新增根級可停靠項目...")
+            # action_add_dockable_root.triggered.connect(...)
+
+        menu.exec_(self.menu_tree_view.mapToGlobal(point))
 
     def update_icon_preview(self, path: str):
         """根據輸入框的路徑，更新圖示預覽。"""
@@ -456,8 +478,12 @@ class IconBrowserDialog(QtWidgets.QDialog):
         """根據搜尋框的文字篩選顯示的圖示。"""
         for i in range(self.icon_list_widget.count()):
             item = self.icon_list_widget.item(i)
+
+            # [Bug修正] 從 UserRole 獲取完整的名稱來進行比對
+            full_item_name = item.data(QtCore.Qt.UserRole)
+            
             # 如果圖示名稱包含搜尋文字 (不分大小寫)，則顯示，否則隱藏
-            is_match = text.lower() in item.text().lower()
+            is_match = text.lower() in full_item_name.lower()
             item.setHidden(not is_match)
 
     def accept_selection(self, item):
