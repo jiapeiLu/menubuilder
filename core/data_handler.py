@@ -27,8 +27,15 @@ class DataHandler:
 
     def load_menu_config(self, config_name: str) -> List[MenuItemData]:
         """
-        從 menuitems 資料夾載入指定的設定檔。
-        config_name: 不含 .json 副檔名的檔案名，例如 "TempBar"。
+        從 menuitems 資料夾載入指定的設定檔，並將其內容轉換為 MenuItemData 物件列表。
+
+        Args:
+            config_name (str): 菜單設定檔的名稱，不包含 .json 副檔名。
+                               例如: "personal_menubar"。
+
+        Returns:
+            List[MenuItemData]: 一個包含所有已載入菜單項資料的列表。
+                                如果檔案不存在或解析失敗，則返回一個空列表。
         """
         config_path = self.MENUITEMS_DIR / f"{config_name}.json"
         
@@ -53,7 +60,13 @@ class DataHandler:
             return []
 
     def save_menu_config(self, config_name: str, data: List[MenuItemData]):
-        """將菜單項資料列表轉換為字典並儲存為JSON檔案。"""
+        """
+        將 MenuItemData 物件列表轉換為 JSON 格式，並寫入到指定的設定檔中。
+
+        Args:
+            config_name (str): 要儲存的菜單設定檔的名稱，不包含 .json 副檔名。
+            data (List[MenuItemData]): 包含了當前所有菜單項資料的物件列表。
+        """
         config_path = self.MENUITEMS_DIR / f"{config_name}.json"
         
         try:

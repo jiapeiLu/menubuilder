@@ -26,8 +26,16 @@ from pathlib import Path
 
 def preserve_ui_state(func):
     """
-    一個裝飾器，用於在執行函式前後自動保存和還原UI的狀態。
-    它會處理樹狀視圖的展開狀態。
+    一個裝飾器，用於在執行會刷新UI樹的操作前後，自動保存和還原其展開狀態。
+
+    這解決了因 `populate_menu_tree` 執行 `clear()` 而導致整個樹摺疊的問題，
+    極大地提升了使用者體驗。
+
+    Args:
+        func (Callable): 被裝飾的目標函式 (必須是 Controller 的一個方法)。
+
+    Returns:
+        Callable: 包裝後的函式。
     """
     @functools.wraps(func)  # 這可以保持原函式的名稱、文檔等元數據
     def wrapper(self, *args, **kwargs):
@@ -61,6 +69,7 @@ class MenuBuilderController:
     執行所有的業務邏輯、資料處理和流程控制，並在必要時命令UI進行更新。
     """
     def __init__(self):
+        """初始化 Controller、所有核心模組以及應用程式的狀態變數。"""
         log.info("MenuBuilderController 初始化開始...")
         self.data_handler = DataHandler()
         self.menu_generator = MenuGenerator() # 實例化 MenuGenerator
@@ -74,8 +83,11 @@ class MenuBuilderController:
         log.info("MenuBuilderController 初始化完成。")
 
     def _connect_signals(self):
-        """集中管理所有UI信號的連接。
-        使用旗標確保這個函式只會被成功執行一次。
+        """
+        集中管理所有 UI 元件的信號與槽(slots)的連接。
+        
+        使用 `_signals_connected` 旗標來確保這個連接過程在程式的生命週期中
+        只會被執行一次，以避免因模組重載(reload)導致的信號重複連接問題。
         """
         # [核心修改] 只有在尚未連接過信號時，才執行連接操作
         if self._signals_connected:
@@ -215,8 +227,16 @@ class MenuBuilderController:
             log.warning("無法刪除，所選項目是一個文件夾或沒有關聯資料。請使用右鍵選單刪除文件夾。")
 
         #[新增] 同步資料
+    
     def _sync_data_from_ui(self):
-        """核心同步函式：從UI掃描最新狀態，並更新記憶體中的資料列表。"""
+        """
+        核心同步函式：從UI樹狀視圖掃描最新狀態，並更新記憶體中的資料列表。
+
+        這是實現「UI與資料延遲同步」混合模式的關鍵。它呼叫 UI 的
+        `get_ordered_data_from_tree` 方法來獲取一個完全反映使用者視覺排序
+        和結構的列表，然後用這個列表覆蓋 `self.current_menu_data`，並重新
+        計算所有項目的 `order` 屬性。
+        """
         log.debug("從 UI 同步資料...")
         ordered_data_from_ui = self.ui.get_ordered_data_from_tree()
         
@@ -240,7 +260,14 @@ class MenuBuilderController:
         self.data_handler.save_menu_config(config_name, self.current_menu_data)
 
     def on_build_menu_clicked(self):
-        """當'生成/刷新菜單'按鈕被點擊時觸發。"""
+        """
+        處理「在Maya中產生/刷新菜單」按鈕的點擊事件。
+
+        執行最終的菜單生成流程：
+        1. 呼叫 `_sync_data_from_ui()` 確保資料與UI同步。
+        2. 呼叫 `menu_generator.clear_existing_menus()` 清理舊菜單。
+        3. 呼叫 `menu_generator.build_from_config()` 用最新資料生成新菜單。
+        """
         
         # 0. 先從UI同步最新的順序和結構
         self._sync_data_from_ui()
@@ -314,7 +341,13 @@ class MenuBuilderController:
         log.info(f"已將當前設定另存為: {file_path}")
 
     def on_tree_item_double_clicked(self, item, column):
-        """[簡化後] 當樹狀列表中的項目被雙擊時觸發。"""
+        """
+        當樹狀列表中的項目被雙擊時觸發，讓工具進入「編輯模式」。
+
+        Args:
+            item (QtWidgets.QTreeWidgetItem): 被雙擊的UI項目。
+            column (int): 被雙擊的欄位索引。
+        """
         item_data = item.data(0, QtCore.Qt.UserRole)
         if not item_data:
             log.debug("雙擊的是一個文件夾，無操作。")
@@ -330,7 +363,14 @@ class MenuBuilderController:
     @preserve_ui_state
     def on_add_item_clicked(self):
         """
-        [優化後] 處理'新增/更新'按鈕的點擊事件。
+        處理「新增/更新」按鈕的點擊事件。
+
+        此函式具有雙重職責：
+        - 如果 `self.current_edit_item_data` 有值 (處於編輯模式)，則將
+          UI 面板的內容更新到該資料物件上。
+        - 如果為 `None` (處於新增模式)，則創建一個新的資料物件並附加到列表中。
+        
+        操作完成後，會刷新UI樹並退出編輯模式。
         """
         edited_data = self.ui.get_attributes_from_fields()
         if not edited_data.menu_label or not edited_data.function_str:
@@ -559,7 +599,16 @@ class MenuBuilderController:
     
     @preserve_ui_state
     def on_option_box_changed(self, state):
-        """[修正後] 當'作為選項框'核取方塊的狀態改變時觸發。"""
+        """
+        當'作為選項框'核取方塊的狀態改變時觸發。
+
+        執行驗證邏輯：檢查所選項目的上方是否有一個有效的父級功能項。
+        如果驗證成功，則更新資料模型並刷新UI。如果失敗，則彈出警告並
+        將核取方塊恢復原狀。
+
+        Args:
+            state (int): 核取方塊的狀態 (e.g., QtCore.Qt.Checked)。
+        """
         if state > 0:
             if not self.current_edit_item_data:
                 QtWidgets.QMessageBox.warning(self.ui, "操作無效", "請先從左側雙擊一個項目以進入編輯模式。")

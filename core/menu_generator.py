@@ -25,7 +25,13 @@ class MenuGenerator:
     主菜單欄上建構出使用者定義的結構。
     """
     def clear_existing_menus(self):
-        """讀取 optionVar，清除由本工具先前創建的所有頂層菜單。"""
+        """
+        清理所有由 Menubuilder 先前創建的頂層菜單。
+
+        此函式透過讀取儲存在 Maya `optionVar` (`menubuilder_created_menus`) 中的
+        菜單名稱列表，來安全地識別並刪除由本工具管理的菜單，從而避免在
+        刷新時產生重複的菜單。
+        """
         log.info("正在透過 optionVar 清除舊的 Menubuilder 菜單...")
         if not cmds.optionVar(exists=OPTIONVAR_KEY):
             return
@@ -43,6 +49,19 @@ class MenuGenerator:
         cmds.optionVar(remove=OPTIONVAR_KEY)
 
     def _generate_command_string(self, item: MenuItemData) -> str:
+        """
+        一個私有輔助函式，根據 MenuItemData 物件的內容生成最終的可執行指令字串。
+
+        它會處理不同的指令類型，例如將 'mel:' 前綴的指令包裝在 `mel.eval()` 中。
+        這是將儲存的 `function_str` 轉換為 `cmds.menuItem` 所需 `command` 參數的
+        最後一步。
+
+        Args:
+            item (MenuItemData): 包含指令資訊的菜單項資料物件。
+
+        Returns:
+            str: 一個準備好被 Maya menuItem 執行的單行指令字串。
+        """
         original_command = item.function_str.strip()
         '''disable dockable
         if item.is_dockable:
@@ -71,6 +90,23 @@ class MenuGenerator:
             return original_command
         
     def build_from_config(self, data: List[MenuItemData]):
+        """
+        接收一個已排序的資料列表，並在Maya中建構出完整的菜單結構。
+
+        這是本類別的核心方法。其主要執行流程如下：
+        1. 根據 `order` 屬性對傳入的資料列表進行最終排序。
+        2. 遍歷每一個 `MenuItemData` 物件。
+        3. 對於每個項目，解析其 `sub_menu_path`，並使用快取 (`parent_menu_cache`)
+           來遞迴地創建或查找對應的父級子菜單。
+           - 頂層菜單使用 `cmds.menu()` 創建。
+           - 子菜單使用 `cmds.menuItem(subMenu=True)` 創建。
+        4. 處理特殊項目，如分隔符(`separator`)。
+        5. 呼叫 `_generate_command_string` 來獲取最終指令。
+        6. 創建最終的 `cmds.menuItem`，並根據資料設定其屬性（如 `optionBox`, `image` 等）。
+
+        Args:
+            data (List[MenuItemData]): 一個包含了所有菜單項資料的物件列表。
+        """
         if not data:
             log.warning("沒有可建立的菜單資料。")
             return

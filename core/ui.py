@@ -24,6 +24,12 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
     通知 Controller。它本身不包含任何業務邏輯。
     """
     def __init__(self, controller):
+        """
+        初始化 MenuBuilderUI 主視窗。
+
+        Args:
+            controller (MenuBuilderController): 控制器物件的實例，用於信號連接。
+        """
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Menu Builder v1.0")
@@ -187,7 +193,15 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         
     def populate_menu_tree(self, items: List[MenuItemData]):
         """
-        [重構後] 一個不依賴輸入順序的、穩健的UI樹重建函式。
+        根據提供的資料列表，完整地重建左側的樹狀視圖。
+
+        這個函式不依賴傳入列表的順序。它會動態地解析每個項目的
+        `sub_menu_path` 來創建或查找父級節點，確保層級結構的正確性。
+        同時，它會為特殊項目（如選項框）應用自訂的視覺樣式，並將
+        `MenuItemData` 物件本身附加到對應的UI項目上以便後續使用。
+
+        Args:
+            items (List[MenuItemData]): 用於渲染UI樹的菜單項資料列表。
         """
         # 在重建前，阻擋信號，防止觸發不必要的 itemChanged 事件
         self.menu_tree_view.blockSignals(True)
@@ -249,8 +263,13 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.menu_tree_view.blockSignals(False)
     
     def get_attributes_from_fields(self) -> MenuItemData:
-        """從右側面板的所有輸入框中收集資料，並返回一個 MenuItemData 物件。"""
-        
+        """
+        從右側編輯器面板的所有輸入框中收集當前的值，並打包成一個新的
+        MenuItemData 物件。
+
+        Returns:
+            MenuItemData: 一個包含了右側面板所有當前設定的新資料物件。
+        """
         # 判斷指令來源：是從函式列表選擇，還是手動輸入
         # Tab 0: 從檔案解析, Tab 1: 手動輸入
         function_string = ""
@@ -290,8 +309,13 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         
     def get_ordered_data_from_tree(self) -> List[MenuItemData]:
         """
-        公開方法：從樹狀視圖的根開始，遞迴掃描所有項目，
-        並返回一個完全按照UI顯示順序排序、且路徑已更新的 MenuItemData 列表。
+        遞迴掃描整個UI樹，返回一個完全按照當前視覺順序和結構排序的資料列表。
+
+        這是實現「所見即所得」排序的核心。它不僅保證了順序，還會在過程中
+        自動修正被拖放過的項目的 `sub_menu_path` 屬性，確保資料的準確性。
+
+        Returns:
+            List[MenuItemData]: 一個與UI視覺呈現完全同步的、有序的資料列表。
         """
         log.info("從UI樹狀視圖掃描並生成有序的資料列表...")
         ordered_list = []
@@ -357,7 +381,12 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 item.setExpanded(True)        
 
     def set_attributes_to_fields(self, data: MenuItemData):
-        """接收一個 MenuItemData 物件，並將其內容更新到右側的編輯器UI上。"""
+        """
+        接收一個 MenuItemData 物件，並將其內容更新到右側的編輯器UI上。
+
+        Args:
+            data (MenuItemData): 要顯示在編輯器中的資料物件。
+        """
         if not data:
             # 可以選擇清空所有欄位
             log.warning("傳入的 item_data 為空，無法填入欄位。")
@@ -384,7 +413,14 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         return "/".join(path)
 
     def on_tree_context_menu(self, point: QtCore.QPoint):
-        """[簡化後] 當使用者在樹狀視圖上右鍵點擊時，創建並顯示選單。"""
+        """
+        當接收到 `customContextMenuRequested` 信號時，創建並顯示右鍵選單。
+
+        選單的內容會根據使用者點擊的位置（是在項目上還是空白處）動態生成。
+
+        Args:
+            point (QtCore.QPoint): 使用者右鍵點擊的視窗座標。
+        """
         menu = QtWidgets.QMenu(self)
         item = self.menu_tree_view.itemAt(point)
 
@@ -436,7 +472,12 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         menu.exec_(self.menu_tree_view.mapToGlobal(point))
 
     def update_icon_preview(self, path: str):
-        """根據輸入框的路徑，更新圖示預覽。"""
+        """
+        當圖示路徑輸入框的文字改變時，即時更新預覽區域的圖片。
+
+        Args:
+            path (str): 輸入框中當前的文字（圖示路徑）。
+        """
         if not path:
             self.icon_preview.clear()
             self.icon_preview.setText("無")

@@ -24,8 +24,18 @@ class ScriptParser:
     @staticmethod
     def parse_py_file(file_path: str) -> list:
         """
-        [推薦使用] 一個更寬容的解析方法，使用正則表達式。
-        它能容忍檔案中的語法錯誤 (例如 Python 2 的 print 語法)。
+        從指定的 Python 腳本檔案中，解析出所有頂層的函式名稱。
+
+        這個方法採用了寬容度較高的正則表達式進行解析，因此即使腳本中
+        包含部分語法錯誤（例如 Python 2 的 print 語法），它依然能成功
+        提取出函式定義的名稱，這使得工具能更好地相容各種舊腳本。
+
+        Args:
+            file_path (str): 要解析的 .py 檔案的完整路徑。
+
+        Returns:
+            list: 一個包含所有找到的函式名稱（字串）的列表。
+                  如果解析失敗，則返回一個空列表。
         """
         functions = []
         try:
@@ -62,7 +72,21 @@ class ScriptParser:
 
     @staticmethod
     def generate_label_from_string(command: str) -> str:
-        """根據一系列規則，從指令字串智慧生成顯示標籤。"""
+        """
+        根據一系列預設規則，將一個技術性的指令字串轉換為人類易讀的菜單標籤。
+
+        轉換規則包括：
+        - 移除常見的前綴 (如 'cmds.') 和後綴 (如 '.main()')。
+        - 將蛇形命名 (snake_case) 和駝峰式命名 (CamelCase) 轉換為帶空格的單字。
+        - 將每個單字的首字母轉為大寫。
+
+        Args:
+            command (str): 原始的函式名或指令字串。
+                           例如："my_awesome_tool" 或 "cmds.polySphere"。
+
+        Returns:
+            str: 一個格式化後的標籤字串。例如："My Awesome Tool" 或 "Poly Sphere"。
+        """
         # 1. 移除常見的前綴和後綴
         core_cmd = re.sub(r'^cmds\.', '', command)
         core_cmd = re.sub(r'\.(main|run|execute)\s*\(\)\s*$', '', core_cmd)
@@ -84,8 +108,17 @@ class ScriptParser:
     @staticmethod
     def has_dockable_interface(file_path: str) -> bool:
         """
-        檢查指定的Python腳本檔案是否包含 'for_dockable_layout' 函式。
-        這是我們與使用者腳本之間的「契約」。
+        檢查指定的Python腳本檔案是否符合 Menubuilder 的「可停靠UI框架契約」。
+
+        這個契約的具體內容是：腳本中必須包含一個確切名為 `for_dockable_layout`
+        的函式。這個方法用於在使用者勾選 `IsDockableUI` 時，驗證目標腳本的
+        相容性。
+
+        Args:
+            file_path (str): 要檢查的 .py 檔案的完整路徑。
+
+        Returns:
+            bool: 如果腳本符合契約返回 `True`，否則返回 `False`。
         """
         if not file_path:
             return False
