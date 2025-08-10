@@ -1,4 +1,13 @@
-# core/logger.py
+"""
+Menubuilder - Logger Setup Module
+
+這個模組負責初始化並配置整個專案的日誌系統 (logging)。
+
+它會建立一個名為 'menubuilder' 的 logger 實例，並為其設定好格式
+以及多個輸出管道 (Handler)，例如輸出到 Maya Script Editor 和
+一個位於使用者設定資料夾中的日誌檔案。這提供了一個集中管理日誌
+的入口點，方便進行除錯和追蹤。
+"""
 import logging
 import os
 from .setting_reader import current_setting # 載入setting

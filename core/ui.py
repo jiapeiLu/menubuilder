@@ -1,4 +1,13 @@
-# core/ui.py
+"""
+Menubuilder - User Interface Module (View)
+
+這個模組是 MVC 架構中的「視圖(View)」層。
+
+它包含了所有使用者介面的定義，使用 PySide2 框架編寫。
+主要包含 `MenuBuilderUI` (主視窗) 和 `IconBrowserDialog` (圖示瀏覽器)
+等類別。它的職責是呈現資料和佈局，並在使用者操作時發出信號(signals)
+給 Controller。它本身不包含任何業務邏輯。
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 from typing import List
 from .dto import MenuItemData
@@ -7,6 +16,13 @@ import maya.cmds as cmds
 import functools
 
 class MenuBuilderUI(QtWidgets.QMainWindow):
+    """
+    Menubuilder 的主 UI 視窗，扮演 MVC 架構中的視圖(View)角色。
+    
+    這個類別負責創建和佈局所有的UI元件，例如按鈕、列表、輸入框等。
+    它接收來自 Controller 的指令來更新顯示，並在使用者操作時發出信號(signals)
+    通知 Controller。它本身不包含任何業務邏輯。
+    """
     def __init__(self, controller):
         super().__init__()
         self.controller = controller
@@ -438,7 +454,13 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
 
 class IconBrowserDialog(QtWidgets.QDialog):
-    """一個用於瀏覽和選擇Maya內建圖示的對話框。"""
+    """
+    一個用於瀏覽和選擇Maya內建圖示的獨立對話框。
+
+    這個類別使用 QListWidget 的 IconMode 來預覽所有從 Maya ResourceManager
+    中獲取的圖示，並提供了搜尋篩選功能。當使用者選擇一個圖示後，它會
+    發出一個自訂信號 `icon_selected` 將結果傳回給主控制器。
+    """
     
     icon_selected = QtCore.Signal(str) # 自訂信號，當使用者選擇圖示後發出
 
@@ -519,7 +541,13 @@ class IconBrowserDialog(QtWidgets.QDialog):
 
 # [新增] 創建一個自訂的 QTreeWidget 子類別
 class DraggableTreeWidget(QtWidgets.QTreeWidget):
-    # 定義一個自訂信號，當一個項目被拖放成選項框時發出
+    """
+    一個繼承自 QTreeWidget 的自訂元件，增加了對複雜拖放邏輯的支援。
+
+    重寫了 dropEvent 方法，以便在使用者拖放項目時，可以進行自訂的驗證
+    (例如，防止將選項框拖放到非法位置)，並發出自訂信號來通知 Controller
+    進行資料更新，以實現智慧的「拖放成為選項框」功能。
+    """
     item_drop_state_changed = QtCore.Signal(object, bool) # source_data, is_option_box
 
     def __init__(self, parent=None):

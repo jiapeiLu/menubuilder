@@ -1,4 +1,13 @@
-# menubuilder/__init__.py
+"""
+Menubuilder - Main Package Entry Point
+
+這是 menubuilder 套件的主入口點。
+
+它提供了兩個供外部呼叫的核心函式：
+- show(): 用於顯示工具的主UI介面，並使用單例模式確保視窗唯一。
+- reload_all(): 一個智慧的重載函式，用於在開發過程中安全地重載
+  所有相關的模組，避免重啟Maya。
+"""
 import importlib
 import sys
 import logging

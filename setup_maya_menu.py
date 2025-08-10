@@ -1,4 +1,12 @@
-# menubuilder/setup_maya_menu.py
+"""
+Menubuilder - Deployment Script
+
+這是一個輕量級的部署腳本，用於在 Maya 啟動時自動生成菜單。
+
+它的設計目的是讓沒有編輯需求的終端使用者（例如美術師）能夠輕鬆地
+載入由TA或開發者配置好的菜單，而無需開啟 Menubuilder 的編輯器UI。
+這個腳本通常透過 userSetup.py 來呼叫。
+"""
 import maya.cmds as cmds
 
 def build_menus_on_startup():

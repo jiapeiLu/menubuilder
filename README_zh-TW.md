@@ -1,3 +1,4 @@
+[Read in English](./README.md)
 # Menu Builder for Maya
 
 **一個為 3D 美術師與專案 TA 設計的、視覺化的 Maya 菜單編輯與管理工具。**

@@ -1,4 +1,12 @@
-# core/setting_reader.py
+"""
+Menubuilder - Settings Reader Module
+
+這個模組專門負責讀取專案根目錄下的 `settings.json` 檔案。
+
+它的核心功能是 `load_setting` 函式，該函式會安全地載入使用者設定，
+並在檔案不存在或內容損毀時，提供一套穩健的預設值，確保工具
+總能以一個可用的狀態啟動。
+"""
 import json
 from pathlib import Path
 setting_FILE = Path(__file__).parent.parent / "setting.json"

@@ -1,4 +1,12 @@
-# core/menu_generator.py
+"""
+Menubuilder - Maya Menu Generator Module
+
+這個模組是連接 menubuilder 資料與 Maya 實際UI之間的橋樑。
+
+它的核心職責是接收一個 `MenuItemData` 物件列表，並根據其中的
+資料，使用 maya.cmds 來動態地創建、銷毀和刷新 Maya 主視窗上
+的菜單和菜單項。所有直接與 Maya 菜單UI互動的程式碼都應封裝在此處。
+"""
 from maya import cmds, mel
 from typing import List
 from .dto import MenuItemData
@@ -8,7 +16,14 @@ import re # 導入正則表達式模組
 OPTIONVAR_KEY = "menubuilder_created_menus"
 
 class MenuGenerator:
-    # ... clear_existing_menus() 方法不變 ...
+    """
+    負責在Maya中實際生成和銷毀菜單。
+
+    這個類別是 Menubuilder 資料邏輯與 Maya UI 之間的最終橋樑。
+    它接收一個 `MenuItemData` 物件的列表，並將其轉換為一系列
+    `maya.cmds.menu` 和 `maya.cmds.menuItem` 的呼叫，以在Maya
+    主菜單欄上建構出使用者定義的結構。
+    """
     def clear_existing_menus(self):
         """讀取 optionVar，清除由本工具先前創建的所有頂層菜單。"""
         log.info("正在透過 optionVar 清除舊的 Menubuilder 菜單...")

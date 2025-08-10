@@ -1,12 +1,26 @@
-# core/data_handler.py
+"""
+Menubuilder - Data Handler Module (Model)
+
+這個模組是 MVC 架構中的「模型(Model)」層的一部分。
+
+它的核心職責是處理所有與菜單設定檔 (`menuitems/*.json`) 相關的
+檔案 I/O 操作。這包括從 .json 檔案中讀取資料並將其轉換為
+`MenuItemData` 物件列表，以及將 `MenuItemData` 物件列表寫回
+.json 檔案中。
+"""
 import json
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List
 from .dto import MenuItemData
 from .logger import log
 
 class DataHandler:
-    """負責讀取和寫入菜單設定檔。"""
+    """
+    負責讀取和寫入菜單設定檔，是MVC架構中模型(Model)的檔案I/O部分。
+    
+    這個類別封裝了所有與 `menuitems/*.json` 檔案互動的邏輯。它將
+    JSON的字典格式與程式內部的 `MenuItemData` 物件格式進行互相轉換。
+    """
     
     # 動態獲取 menuitems 資料夾的路徑
     MENUITEMS_DIR = Path(__file__).parent.parent / "menuitems"

@@ -1,10 +1,25 @@
-# core/script_parser.py
+"""
+Menubuilder - Script Parser Utility Module
+
+這個模組提供了一系列靜態方法，用於解析和分析 Python 腳本檔案。
+
+它的主要職責包括：
+- 從 .py 檔案中寬容地解析出所有函式名稱。
+- 根據約定的規則，從函式名或指令字串中智慧生成易讀的標籤。
+- 檢查腳本是否符合特定的框架契約 (例如，是否包含 'for_dockable_layout' 函式)。
+"""
 import ast
 import re
 from .logger import log
 
 class ScriptParser:
-    """一個無狀態的工具類，提供解析功能。"""
+    """
+    一個無狀態的工具類 (Utility Class)，提供一系列靜態方法來解析和分析腳本。
+
+    這個類別不儲存任何實例狀態。它的所有方法都是獨立的，接收輸入並返回
+    結果，主要用於從檔案字串中提取函式名稱、生成標籤等與腳本內容相關的
+    操作。
+    """
 
     @staticmethod
     def parse_py_file(file_path: str) -> list:

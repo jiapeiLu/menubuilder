@@ -1,4 +1,14 @@
-# core/controller.py
+"""
+Menubuilder - Controller Module
+
+這個模組是 Menubuilder 工具的核心，扮演 MVC 架構中的「控制器(Controller)」角色。
+
+它負責：
+- 處理來自 UI (View) 的所有使用者事件（按鈕點擊、列表選擇等）。
+- 協調 DataHandler (Model) 進行資料的讀取與儲存。
+- 呼叫 MenuGenerator 來在 Maya 中實際生成菜單。
+- 管理整個應用程式的狀態和業務邏輯。
+"""
 import functools # 導入 functools 以便使用 wraps
 from .logger import log  # 從我們建立的logger模組導入已經配置好的log實例
 #phase1 新增
@@ -43,6 +53,13 @@ def preserve_ui_state(func):
     return wrapper
 
 class MenuBuilderController:
+    """
+    Menubuilder 工具的核心，扮演 MVC 架構中的控制器(Controller)角色。
+
+    作為應用程式的大腦，它持有 View (MenuBuilderUI) 和 Model (DataHandler)
+    的實例。它負責將UI發出的信號連接到對應的處理函式(slots)，在這些函式中
+    執行所有的業務邏輯、資料處理和流程控制，並在必要時命令UI進行更新。
+    """
     def __init__(self):
         log.info("MenuBuilderController 初始化開始...")
         self.data_handler = DataHandler()
