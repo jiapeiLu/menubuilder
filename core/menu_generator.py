@@ -91,12 +91,19 @@ class MenuGenerator:
                 continue
 
             command_str = self._generate_command_string(item)
-            log.debug(f"生成指令: {command_str}。")
+            # --- [核心修改] ---
+            # 檢查是否為 Option Box
+            is_opt_box = item.is_option_box
+            
+            # 為 Option Box 自動指定 Maya 內建圖示
+            icon_path = ":/options.png" if is_opt_box else (item.icon_path if item.icon_path else "")
+            
             cmds.menuItem(
                 item.menu_label,
                 parent=parent,
                 command=command_str,
-                image=item.icon_path if item.icon_path else "",
+                image=icon_path,
+                optionBox=is_opt_box  # <-- 關鍵旗標
             )
         
         log.info(f"成功建立 {len(sorted_data)} 個菜單項。")

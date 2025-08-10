@@ -6,7 +6,6 @@
         "menu_label": "Freeze Transformations",
         "module_path": "",
         "icon_path": "",
-        "is_dockable": false,
         "is_option_box": false
     },
     {
@@ -16,7 +15,6 @@
         "menu_label": "Set Play Back",
         "module_path": "",
         "icon_path": "",
-        "is_dockable": false,
         "is_option_box": false
     },
     {
@@ -26,7 +24,6 @@
         "menu_label": "Set Play Back",
         "module_path": "",
         "icon_path": "",
-        "is_dockable": false,
         "is_option_box": false
     },
     {
@@ -36,7 +33,6 @@
         "menu_label": "Create Sphere",
         "module_path": "",
         "icon_path": "",
-        "is_dockable": false,
         "is_option_box": false
     },
     {
@@ -46,7 +42,6 @@
         "menu_label": "Main",
         "module_path": "",
         "icon_path": "",
-        "is_dockable": true,
         "is_option_box": false
     },
     {
@@ -56,7 +51,6 @@
         "menu_label": "Layout",
         "module_path": "",
         "icon_path": "",
-        "is_dockable": true,
         "is_option_box": false
     },
     {
@@ -66,7 +60,6 @@
         "menu_label": "Vtx Match",
         "module_path": "",
         "icon_path": "",
-        "is_dockable": false,
         "is_option_box": false
     },
     {
@@ -76,7 +69,6 @@
         "menu_label": "Vtx Match Pyside",
         "module_path": "",
         "icon_path": "",
-        "is_dockable": true,
         "is_option_box": false
     }
 ]

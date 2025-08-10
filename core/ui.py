@@ -29,15 +29,15 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         # --- 左側: 現有菜單結構 ---
         left_layout = QtWidgets.QVBoxLayout()
         left_label = QtWidgets.QLabel("現有菜單結構 (Menu Configuration)")
-        self.menu_tree_view = QtWidgets.QTreeWidget()
+        self.menu_tree_view = DraggableTreeWidget()
         self.menu_tree_view.setHeaderLabels(["菜單項 (Menu Item)", "路徑 (Path)"])
         self.menu_tree_view.setColumnWidth(0, 200)
         # 啟用Qt內建拖放功能
-        self.menu_tree_view.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
-        self.menu_tree_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        self.menu_tree_view.setDragEnabled(True)
-        self.menu_tree_view.setAcceptDrops(True)
-        self.menu_tree_view.setDropIndicatorShown(True)
+        #self.menu_tree_view.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+        #self.menu_tree_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        #self.menu_tree_view.setDragEnabled(True)
+        #self.menu_tree_view.setAcceptDrops(True)
+        #self.menu_tree_view.setDropIndicatorShown(True)
         # 啟用自訂右鍵選單
         self.menu_tree_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
@@ -116,7 +116,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.icon_input.textChanged.connect(self.update_icon_preview)
         # -----------------------------------------------------------------
         
-        self.dockable_checkbox = QtWidgets.QCheckBox("可停靠介面 (IsDockableUI)")
+        #self.dockable_checkbox = QtWidgets.QCheckBox("可停靠介面 (IsDockableUI)")
         self.option_box_checkbox = QtWidgets.QCheckBox("作為選項框 (IsOptionBox)")
 
         form_layout.addRow("菜單標籤 (Label):", self.label_input)
@@ -126,7 +126,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         form_layout.addRow("圖示路徑 (Icon):", icon_path_layout)
         form_layout.addRow("預覽 (Preview):", self.icon_preview)
         
-        form_layout.addRow(self.dockable_checkbox)
+        #form_layout.addRow(self.dockable_checkbox)
         form_layout.addRow(self.option_box_checkbox)
 
         self.attribute_box.setLayout(form_layout)
@@ -175,7 +175,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         """
         # 在重建前，阻擋信號，防止觸發不必要的 itemChanged 事件
         self.menu_tree_view.blockSignals(True)
-        
         self.menu_tree_view.clear()
         self.item_map.clear()
         
@@ -198,10 +197,34 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                         self.item_map[full_path_key] = new_parent
                         parent_ui_item = new_parent
 
+            # --- [核心修改] 根據 is_option_box 決定顯示樣式 ---
+            display_label = item_data.menu_label
+            
+            # 檢查當前項目是否為 Option Box
+            if item_data.is_option_box:
+                # 為標籤加上前綴，提供視覺提示
+                display_label = f"(□) {item_data.menu_label}"
+                
+                # 找到它邏輯上的父項目 (列表中的上一個)
+                # 這部分邏輯在Controller中處理，UI只負責顯示
+                # 我們可以在這裡嘗試找到它在UI中的父級並進行縮排
+                # 但更簡單的方式是讓Controller處理好順序和父子關係
+                # 目前我們先只做視覺提示
+
             # 創建並附加真正的功能節點
-            menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [item_data.menu_label])
+            menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [display_label])
             # 注意：功能節點本身不可直接在樹上編輯名稱
             menu_qitem.setData(0, QtCore.Qt.UserRole, item_data)
+            
+            # --- [核心修改] is_option_box ---
+            if item_data.is_option_box:
+                menu_qitem.setToolTip(0, f"此項目是一個選項框(Option Box)，\n隸屬於它上方的菜單項。")
+                # 可以考慮改變顏色以示區分
+                font = menu_qitem.font(0)
+                font.setItalic(True)
+                menu_qitem.setFont(0, font)
+                menu_qitem.setForeground(0, QtGui.QColor("#A0A0A0"))
+            
             # 將功能節點本身也加入 item_map，以便查找
             final_path = f"{item_data.sub_menu_path}/{item_data.menu_label}" if item_data.sub_menu_path else item_data.menu_label
             self.item_map[final_path] = menu_qitem
@@ -229,7 +252,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             sub_menu_path=self.path_input.text(),
             order=self.order_input.value(),
             icon_path=self.icon_input.text(),
-            is_dockable=self.dockable_checkbox.isChecked(),
+            #is_dockable=self.dockable_checkbox.isChecked(),
             is_option_box=self.option_box_checkbox.isChecked(),
             function_str=function_string
             # module_path 可以考慮在選擇檔案時就存起來
@@ -329,7 +352,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.path_input.setText(data.sub_menu_path)
         self.order_input.setValue(data.order)
         self.icon_input.setText(data.icon_path)
-        self.dockable_checkbox.setChecked(data.is_dockable)
+        #self.dockable_checkbox.setChecked(data.is_dockable)
         self.option_box_checkbox.setChecked(data.is_option_box)
 
         # 將指令填入「手動輸入」框，並切換到該分頁，方便查看和編輯
@@ -494,3 +517,49 @@ class IconBrowserDialog(QtWidgets.QDialog):
         self.icon_selected.emit(f":/{selected_icon_name}")
         self.accept() # 關閉對話框
 
+# [新增] 創建一個自訂的 QTreeWidget 子類別
+class DraggableTreeWidget(QtWidgets.QTreeWidget):
+    # 定義一個自訂信號，當一個項目被拖放成選項框時發出
+    item_drop_state_changed = QtCore.Signal(object, bool) # source_data, is_option_box
+
+    def __init__(self, parent=None):
+        super(DraggableTreeWidget, self).__init__(parent)
+        # 設定拖放相關屬性
+        self.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+
+    def dropEvent(self, event: QtGui.QDropEvent):
+        """重寫 dropEvent 來加入我們自己的驗證邏輯。"""
+        # 獲取拖放的目標位置
+        target_item = self.itemAt(event.pos())
+        
+        # 獲取被拖曳的項目 (source)
+        source_item = self.currentItem()
+
+        if not source_item or source_item == target_item:
+            event.ignore()
+            return
+
+        source_data = source_item.data(0, QtCore.Qt.UserRole)
+        if not source_data: # 如果拖的是文件夾，直接執行預設行為
+            super(DraggableTreeWidget, self).dropEvent(event)
+            return
+
+        # --- 開始我們的驗證邏輯 ---
+        target_data = target_item.data(0, QtCore.Qt.UserRole) if target_item else None
+        
+        # 判斷是否應該成為 Option Box
+        should_be_option_box = (
+            target_data is not None and                # 目標是一個功能項
+            not target_data.is_option_box and          # 目標本身不是OptionBox
+            source_data != target_data                 # 不是自己拖到自己身上
+        )
+
+        # 發出自訂信號，通知 Controller 進行資料更新
+        self.item_drop_state_changed.emit(source_data, should_be_option_box)
+
+        # 執行預設的拖放行為（讓Qt移動UI項目）
+        super(DraggableTreeWidget, self).dropEvent(event)

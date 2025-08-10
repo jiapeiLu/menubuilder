@@ -75,6 +75,9 @@ class MenuBuilderController:
         self.ui.menu_tree_view.itemDoubleClicked.connect(self.on_tree_item_double_clicked)
         self.ui.menu_tree_view.customContextMenuRequested.connect(self.ui.on_tree_context_menu)
         self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed) # 連接項目變更(編輯完成)的信號
+        # [修改] 連接到新的自訂信號
+        self.ui.menu_tree_view.item_drop_state_changed.connect(self.on_item_drop_state_changed)
+
         #self.ui.dockable_checkbox.stateChanged.connect(self.on_dockable_checkbox_changed)
         # 連接檔案菜單的動作
         self.ui.open_action.triggered.connect(self.on_file_open)
@@ -82,6 +85,9 @@ class MenuBuilderController:
         self.ui.save_action.triggered.connect(self.on_save_config_clicked)
         self.ui.save_as_action.triggered.connect(self.on_file_save_as)
         self.ui.exit_action.triggered.connect(self.ui.close) # 直接連接到視窗的關閉方法
+        # [新增] 連接 OptionBox 核取方塊的狀態變化信號
+        self.ui.option_box_checkbox.stateChanged.connect(self.on_option_box_changed)
+
 
         # 在所有連接完成後，將旗標設為 True
         self._signals_connected = True
@@ -290,25 +296,18 @@ class MenuBuilderController:
         self.data_handler.save_menu_config(config_name, self.current_menu_data)
         log.info(f"已將當前設定另存為: {file_path}")
 
-    # [新增] 雙擊事件的處理函式
     def on_tree_item_double_clicked(self, item, column):
-        """當樹狀列表中的項目被雙擊時觸發。"""
+        """[簡化後] 當樹狀列表中的項目被雙擊時觸發。"""
         item_data = item.data(0, QtCore.Qt.UserRole)
         if not item_data:
-            log.debug("雙擊的是一個文件夾，可編輯名稱。")
-            self.current_edit_item_data = None # 清空編輯目標
-            self.ui.add_update_button.setText("新增至結構") # 按鈕文字還原
-            return
+            log.debug("雙擊的是一個文件夾，無操作。")
+            self.current_edit_item_data = None
+        else:
+            log.info(f"正在編輯項目: {item_data.menu_label}")
+            self.current_edit_item_data = item_data
         
-        log.info(f"正在編輯項目: {item_data.menu_label}")
-        # 1. 記錄當前正在編輯的項目
-        self.current_edit_item_data = item_data
-        
-        # 2. 呼叫UI方法，將資料填入右側面板
-        self.ui.set_attributes_to_fields(item_data)
-        
-        # 3. [UX優化] 將按鈕文字從「新增」改為「更新」
-        self.ui.add_update_button.setText("更新項目 (Update)")
+        # 統一呼叫刷新函式
+        self._refresh_editor_panel()
 
     # [修改] on_add_item_clicked 方法，使其能處理更新邏輯
     @preserve_ui_state
@@ -540,3 +539,76 @@ class MenuBuilderController:
             self.ui.dockable_checkbox.setChecked(True)
             self.ui.path_input.setText(parent_path)
             self.ui.label_input.setFocus()'''
+    
+    @preserve_ui_state
+    def on_option_box_changed(self, state):
+        """[修正後] 當'作為選項框'核取方塊的狀態改變時觸發。"""
+        if state > 0:
+            if not self.current_edit_item_data:
+                QtWidgets.QMessageBox.warning(self.ui, "操作無效", "請先從左側雙擊一個項目以進入編輯模式。")
+                self.ui.option_box_checkbox.setChecked(False)
+                return
+
+            # --- [核心修正] 直接從UI查詢父級 ---
+            # 1. 根據正在編輯的資料，反向找到它在UI中的QTreeWidgetItem
+            current_ui_item = None
+            # 我們利用之前建立的 item_map 來快速查找
+            item_path = f"{self.current_edit_item_data.sub_menu_path}/{self.current_edit_item_data.menu_label}" if self.current_edit_item_data.sub_menu_path else self.current_edit_item_data.menu_label
+            if item_path in self.ui.item_map:
+                current_ui_item = self.ui.item_map[item_path]
+
+            if not current_ui_item:
+                log.error("無法在UI樹中找到對應的編輯項目。")
+                self.ui.option_box_checkbox.setChecked(False)
+                return
+
+            # 2. 找到在它視覺正上方的項目
+            parent_candidate_ui_item = self.ui.menu_tree_view.itemAbove(current_ui_item)
+
+            # 3. 驗證這個父級候選者
+            if parent_candidate_ui_item:
+                parent_candidate_data = parent_candidate_ui_item.data(0, QtCore.Qt.UserRole)
+                # 條件：父級必須是一個「功能項」(有關聯資料)，且它自己不能是選項框
+                if parent_candidate_data and not parent_candidate_data.is_option_box:
+                    log.debug(f"項目 '{self.current_edit_item_data.menu_label}' 將成為 '{parent_candidate_data.menu_label}' 的選項框。")
+                    self.current_edit_item_data.is_option_box = True
+                    self.ui.populate_menu_tree(self.current_menu_data)
+                    return # 驗證成功
+
+            # --- 如果驗證失敗 ---
+            QtWidgets.QMessageBox.warning(self.ui, "操作無效", "一個項目要成為選項框，它的正上方必須是一個有效的功能菜單項。")
+            self.ui.option_box_checkbox.setChecked(False)
+        else: # 取消勾選
+            if self.current_edit_item_data:
+                self.current_edit_item_data.is_option_box = False
+                self.ui.populate_menu_tree(self.current_menu_data)
+
+    @preserve_ui_state
+    def on_item_drop_state_changed(self, source_data, is_option_box):
+        """當一個項目被拖放後，根據其新位置更新其狀態。"""
+        if source_data.is_option_box != is_option_box:
+            log.debug(f"'{source_data.menu_label}' 的 is_option_box 狀態變為: {is_option_box}")
+            source_data.is_option_box = is_option_box
+        
+        # [核心] 在資料更新後，呼叫編輯面板刷新函式
+        # 這會檢查被拖放的項目是否就是當前正在編輯的項目，如果是，就更新右側面板
+        self._refresh_editor_panel()
+
+        # 最後，用包含了所有最新狀態的資料，完整刷新一次UI樹
+        self._sync_data_from_ui() # 先從變動後的UI同步一次獲取最新結構
+        self.ui.populate_menu_tree(self.current_menu_data)
+
+    def _refresh_editor_panel(self):
+        """
+        [新增] 一個集中的函式，用來根據 self.current_edit_item_data 的狀態，
+        刷新整個右側編輯面板。
+        """
+        if self.current_edit_item_data:
+            # 如果有正在編輯的項目，用它的資料填充UI
+            self.ui.set_attributes_to_fields(self.current_edit_item_data)
+            self.ui.add_update_button.setText("更新項目 (Update)")
+        else:
+            # 如果沒有正在編輯的項目，可以選擇清空或保持原樣
+            # 我們這裡保持原樣，只還原按鈕文字
+            self.ui.add_update_button.setText("新增至結構")
+
