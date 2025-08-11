@@ -585,20 +585,19 @@ class IconBrowserDialog(QtWidgets.QDialog):
         self.icon_selected.emit(f":/{selected_icon_name}")
         self.accept() # 關閉對話框
 
+
 # [新增] 創建一個自訂的 QTreeWidget 子類別
 class DraggableTreeWidget(QtWidgets.QTreeWidget):
     """
     一個繼承自 QTreeWidget 的自訂元件，增加了對複雜拖放邏輯的支援。
-
-    重寫了 dropEvent 方法，以便在使用者拖放項目時，可以進行自訂的驗證
-    (例如，防止將選項框拖放到非法位置)，並發出自訂信號來通知 Controller
-    進行資料更新，以實現智慧的「拖放成為選項框」功能。
+    它會分析拖放的具體位置，判斷使用者的意圖（排序、重新父級、設為選項框），
+    然後發出自訂信號 `items_dropped` 通知 Controller 進行資料處理。
     """
-    item_drop_state_changed = QtCore.Signal(object, bool) # source_data, is_option_box
+    # 信號: source_item, target_item, drop_indicator_position
+    drop_event_completed = QtCore.Signal(QtWidgets.QTreeWidgetItem, QtWidgets.QTreeWidgetItem, QtWidgets.QAbstractItemView.DropIndicatorPosition)
 
     def __init__(self, parent=None):
         super(DraggableTreeWidget, self).__init__(parent)
-        # 設定拖放相關屬性
         self.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
         self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         self.setDragEnabled(True)
@@ -606,34 +605,16 @@ class DraggableTreeWidget(QtWidgets.QTreeWidget):
         self.setDropIndicatorShown(True)
 
     def dropEvent(self, event: QtGui.QDropEvent):
-        """重寫 dropEvent 來加入我們自己的驗證邏輯。"""
-        # 獲取拖放的目標位置
-        target_item = self.itemAt(event.pos())
-        
-        # 獲取被拖曳的項目 (source)
+        """[最終版] 先執行預設的視覺移動，然後再發出包含完整上下文的信號。"""
+        # 記錄拖放前的資訊
         source_item = self.currentItem()
+        target_item = self.itemAt(event.pos())
+        indicator = self.dropIndicatorPosition()
 
-        if not source_item or source_item == target_item:
-            event.ignore()
-            return
-
-        source_data = source_item.data(0, QtCore.Qt.UserRole)
-        if not source_data: # 如果拖的是文件夾，直接執行預設行為
-            super(DraggableTreeWidget, self).dropEvent(event)
-            return
-
-        # --- 開始我們的驗證邏輯 ---
-        target_data = target_item.data(0, QtCore.Qt.UserRole) if target_item else None
-        
-        # 判斷是否應該成為 Option Box
-        should_be_option_box = (
-            target_data is not None and                # 目標是一個功能項
-            not target_data.is_option_box and          # 目標本身不是OptionBox
-            source_data != target_data                 # 不是自己拖到自己身上
-        )
-
-        # 發出自訂信號，通知 Controller 進行資料更新
-        self.item_drop_state_changed.emit(source_data, should_be_option_box)
-
-        # 執行預設的拖放行為（讓Qt移動UI項目）
+        # 1. 讓Qt先完成所有視覺上的移動
         super(DraggableTreeWidget, self).dropEvent(event)
+        
+        # 2. 發出信號，將所有必要的上下文資訊傳遞給Controller
+        self.drop_event_completed.emit(source_item, target_item, indicator)
+        
+        event.accept()

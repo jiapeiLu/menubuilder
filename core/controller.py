@@ -105,7 +105,8 @@ class MenuBuilderController:
         self.ui.menu_tree_view.customContextMenuRequested.connect(self.ui.on_tree_context_menu)
         self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed) # 連接項目變更(編輯完成)的信號
         # [修改] 連接到新的自訂信號
-        self.ui.menu_tree_view.item_drop_state_changed.connect(self.on_item_drop_state_changed)
+        self.ui.menu_tree_view.drop_event_completed.connect(self.on_drop_event_completed)
+
 
         #self.ui.dockable_checkbox.stateChanged.connect(self.on_dockable_checkbox_changed)
         # 連接檔案菜單的動作
@@ -527,143 +528,7 @@ class MenuBuilderController:
         """當圖示瀏覽器發出'icon_selected'信號時，接收圖示路徑並更新UI。"""
         log.debug(f"接收到選擇的圖示路徑: {icon_path}")
         self.ui.icon_input.setText(icon_path)
-
-    ''' disable dockable
-    def _setup_dockable_ui_mode(self) -> bool:
-        """
-        [新增] 處理所有進入'Dockable模式'的共享邏輯。
-        包含驗證、自動填寫標籤和指令。
-        返回操作是否成功。
-        """
-        # 1. 驗證前提：是否已載入腳本
-        if not self.current_selected_script_path:
-            QtWidgets.QMessageBox.warning(self.ui, "操作無效", "請先使用『瀏覽腳本檔案』按鈕選擇一個 .py 檔。")
-            return False
-
-        # 2. 驗證契約：腳本是否包含 for_dockable_layout()
-        if ScriptParser.has_dockable_interface(self.current_selected_script_path):
-            # --- 驗證通過，設定UI ---
-            module_name = Path(self.current_selected_script_path).stem
-            
-            # 自動生成並設定 Label
-            generated_label = ScriptParser.generate_label_from_string(module_name)
-            self.ui.label_input.setText(generated_label)
-            
-            # 自動生成並設定 Command
-            required_func_name = "for_dockable_layout"
-            command_to_run = (
-                f"import {module_name}\n"
-                f"from importlib import reload\n"
-                f"reload({module_name})\n"
-                f"{module_name}.{required_func_name}()"
-            )
-            self.ui.input_tabs.setCurrentIndex(1)
-            self.ui.manual_cmd_input.setText(command_to_run)
-            self.ui.manual_cmd_input.setReadOnly(True)
-            self.ui.input_tabs.setTabEnabled(0, False)
-            log.debug("已成功設定為 Dockable 模式。")
-            return True
-        else:
-            # --- 驗證失敗，提示使用者 ---
-            QtWidgets.QMessageBox.warning(self.ui, "不相容的腳本", 
-                f"'{Path(self.current_selected_script_path).name}' 不符合可停靠UI的標準。\n\n"
-                f"請確保該腳本中包含一個名為 for_dockable_layout() 的函式。\n\n"
-                f"詳情請參考 README 文件中的範例。")
-            return False
-
-
-    def on_dockable_checkbox_changed(self, state):
-        """[重構後] 當'可停靠介面'核取方塊的狀態改變時觸發。"""
-        if state > 0: # 嘗試勾選
-            success = self._setup_dockable_ui_mode()
-            if not success:
-                # 如果設定失敗（例如驗證不通過），強制取消勾選
-                self.ui.dockable_checkbox.setChecked(False)
-        else: # 取消勾選
-            self.ui.manual_cmd_input.setReadOnly(False)
-            self.ui.input_tabs.setTabEnabled(0, True)
     
-
-    def on_context_add_dockable(self, parent_path: str):
-        """[重構後] 右鍵選單：準備新增一個可停靠項目。"""
-        log.debug(f"準備在 '{parent_path}' 下新增可停靠項目。")
-
-        # 呼叫共享的設定函式
-        success = self._setup_dockable_ui_mode()
-        
-        if success:
-            # 如果成功，則設定路徑並將焦點設定到標籤輸入框
-            self.ui.dockable_checkbox.setChecked(True)
-            self.ui.path_input.setText(parent_path)
-            self.ui.label_input.setFocus()'''
-    
-    @preserve_ui_state
-    def on_option_box_changed(self, state):
-        """
-        當'作為選項框'核取方塊的狀態改變時觸發。
-
-        執行驗證邏輯：檢查所選項目的上方是否有一個有效的父級功能項。
-        如果驗證成功，則更新資料模型並刷新UI。如果失敗，則彈出警告並
-        將核取方塊恢復原狀。
-
-        Args:
-            state (int): 核取方塊的狀態 (e.g., QtCore.Qt.Checked)。
-        """
-        if state > 0:
-            if not self.current_edit_item_data:
-                QtWidgets.QMessageBox.warning(self.ui, "操作無效", "請先從左側雙擊一個項目以進入編輯模式。")
-                self.ui.option_box_checkbox.setChecked(False)
-                return
-
-            # --- [核心修正] 直接從UI查詢父級 ---
-            # 1. 根據正在編輯的資料，反向找到它在UI中的QTreeWidgetItem
-            current_ui_item = None
-            # 我們利用之前建立的 item_map 來快速查找
-            item_path = f"{self.current_edit_item_data.sub_menu_path}/{self.current_edit_item_data.menu_label}" if self.current_edit_item_data.sub_menu_path else self.current_edit_item_data.menu_label
-            if item_path in self.ui.item_map:
-                current_ui_item = self.ui.item_map[item_path]
-
-            if not current_ui_item:
-                log.error("無法在UI樹中找到對應的編輯項目。")
-                self.ui.option_box_checkbox.setChecked(False)
-                return
-
-            # 2. 找到在它視覺正上方的項目
-            parent_candidate_ui_item = self.ui.menu_tree_view.itemAbove(current_ui_item)
-
-            # 3. 驗證這個父級候選者
-            if parent_candidate_ui_item:
-                parent_candidate_data = parent_candidate_ui_item.data(0, QtCore.Qt.UserRole)
-                # 條件：父級必須是一個「功能項」(有關聯資料)，且它自己不能是選項框
-                if parent_candidate_data and not parent_candidate_data.is_option_box:
-                    log.debug(f"項目 '{self.current_edit_item_data.menu_label}' 將成為 '{parent_candidate_data.menu_label}' 的選項框。")
-                    self.current_edit_item_data.is_option_box = True
-                    self.ui.populate_menu_tree(self.current_menu_data)
-                    return # 驗證成功
-
-            # --- 如果驗證失敗 ---
-            QtWidgets.QMessageBox.warning(self.ui, "操作無效", "一個項目要成為選項框，它的正上方必須是一個有效的功能菜單項。")
-            self.ui.option_box_checkbox.setChecked(False)
-        else: # 取消勾選
-            if self.current_edit_item_data:
-                self.current_edit_item_data.is_option_box = False
-                self.ui.populate_menu_tree(self.current_menu_data)
-
-    @preserve_ui_state
-    def on_item_drop_state_changed(self, source_data, is_option_box):
-        """當一個項目被拖放後，根據其新位置更新其狀態。"""
-        if source_data.is_option_box != is_option_box:
-            log.debug(f"'{source_data.menu_label}' 的 is_option_box 狀態變為: {is_option_box}")
-            source_data.is_option_box = is_option_box
-        
-        # [核心] 在資料更新後，呼叫編輯面板刷新函式
-        # 這會檢查被拖放的項目是否就是當前正在編輯的項目，如果是，就更新右側面板
-        self._refresh_editor_panel()
-
-        # 最後，用包含了所有最新狀態的資料，完整刷新一次UI樹
-        self._sync_data_from_ui() # 先從變動後的UI同步一次獲取最新結構
-        self.ui.populate_menu_tree(self.current_menu_data)
-
     def _refresh_editor_panel(self):
         """
         [新增] 一個集中的函式，用來根據 self.current_edit_item_data 的狀態，
@@ -678,3 +543,89 @@ class MenuBuilderController:
             # 我們這裡保持原樣，只還原按鈕文字
             self.ui.add_update_button.setText("新增至結構")
 
+    def _apply_option_box_change(self, item_data_to_change, should_be_option_box):
+        """
+        [新增] 一個統一的、權威的函式，用來處理 is_option_box 狀態的變更。
+        """
+        if item_data_to_change.is_option_box != should_be_option_box:
+            log.debug(f"'{item_data_to_change.menu_label}' 的 is_option_box 狀態變更為: {should_be_option_box}")
+            item_data_to_change.is_option_box = should_be_option_box
+        
+        # 狀態變更後，總是同步並刷新UI
+        self._sync_data_from_ui()
+        self.ui.populate_menu_tree(self.current_menu_data)
+        # 刷新右側面板
+        self._refresh_editor_panel()
+
+
+
+    @preserve_ui_state
+    def on_option_box_changed(self, state):
+        """[重構後] 當勾選或取消勾選時，只更新資料，然後刷新。"""
+        if not self.current_edit_item_data:
+            if state: self.ui.option_box_checkbox.setChecked(False) # 復原勾選
+            return
+
+        is_checked = state > 0
+        
+        # 不再進行複雜的父級驗證，因為拖放已經是主要手段
+        # 我們只信任使用者的操作
+        self.current_edit_item_data.is_option_box = is_checked
+        log.debug(f"透過核取方塊將 '{self.current_edit_item_data.menu_label}' 的 is_option_box 設為: {is_checked}")
+
+        # 直接用當前的資料刷新UI即可
+        self.ui.populate_menu_tree(self.current_menu_data)
+
+    @preserve_ui_state
+    def on_drop_event_completed(self, source_item: QtWidgets.QTreeWidgetItem, 
+                                target_item: QtWidgets.QTreeWidgetItem, 
+                                indicator: QtWidgets.QAbstractItemView.DropIndicatorPosition):
+        """
+        [最終版] 在拖放操作完成後，執行唯一的、權威的資料同步和狀態修正。
+        能精確區分「重新父級」和「成為選項框」兩種意圖。
+        """
+        log.debug("拖放完成，開始同步資料和狀態...")
+        
+        # --- [核心] 在操作前，阻斷信號，防止Bug ---
+        self.ui.option_box_checkbox.blockSignals(True)
+        
+        try:
+            # 1. 從視覺上已經改變的UI，掃描出最新的結構和順序
+            # 這是我們資料的最新基礎，它反映了Qt執行的視覺移動
+            self._sync_data_from_ui()
+            
+            # 2. 獲取被拖曳項目的資料
+            source_data = source_item.data(0, QtCore.Qt.UserRole)
+            if not source_data: # 如果拖的是文件夾，同步完即可，無需後續處理
+                self.ui.populate_menu_tree(self.current_menu_data)
+                return
+
+            # 3. [核心邏輯] 根據拖放的「意圖」來修正資料
+            should_be_option_box = False
+            
+            # 只有當明確地拖放到一個功能項「之上」(OnItem)時，才視為想設為選項框
+            if indicator == QtWidgets.QAbstractItemView.OnItem and target_item:
+                target_data = target_item.data(0, QtCore.Qt.UserRole)
+                # 目標必須是一個「功能項」，且其自身不能是選項框
+                if target_data and not target_data.is_option_box:
+                    should_be_option_box = True
+                    
+                    # [關鍵修正] 如果要成為選項框，它的sub_menu_path
+                    # 應該與它的新「兄弟」(也就是目標)相同，而不是成為其子級。
+                    # 我們從同步後的資料中，強制修正它的路徑。
+                    log.debug(f"意圖：成為選項框。將 '{source_data.menu_label}' 的路徑修正為 '{target_data.sub_menu_path}'")
+                    source_data.sub_menu_path = target_data.sub_menu_path
+
+            # 4. 更新資料
+            if source_data.is_option_box != should_be_option_box:
+                 log.info(f"'{source_data.menu_label}' 的 is_option_box 狀態更新為: {should_be_option_box}")
+                 source_data.is_option_box = should_be_option_box
+            
+            # 5. 用經過二次修正的、100%正確的資料，再次完整刷新UI
+            self.ui.populate_menu_tree(self.current_menu_data)
+            
+            # 6. 刷新右側編輯面板，確保同步
+            self._refresh_editor_panel()
+            
+        finally:
+            self.ui.option_box_checkbox.blockSignals(False)
