@@ -12,6 +12,9 @@ import importlib
 import sys
 import logging
 
+__version__ = "1.0.0"
+__author__ = "Jiapei Lu"
+
 # 獲取一個logger實例，即使core.logger未載入也能安全使用
 log = logging.getLogger('menubuilder_launcher')
 

@@ -15,6 +15,8 @@ from .logger import log
 import maya.cmds as cmds
 import functools
 
+from menubuilder import __version__
+
 class MenuBuilderUI(QtWidgets.QMainWindow):
     """
     Menubuilder 的主 UI 視窗，扮演 MVC 架構中的視圖(View)角色。
@@ -32,7 +34,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         """
         super().__init__()
         self.controller = controller
-        self.setWindowTitle("Menu Builder v1.0")
+        self.setWindowTitle(f"Menu Builder v{__version__}")
         self.setGeometry(300, 300, 800, 700)
         
         # 儲存 QTreeWidgetItems 以便查找
@@ -190,6 +192,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         file_menu.addSeparator() # 加入分隔線
         
         self.exit_action = file_menu.addAction("離開 (Exit)")
+
+        help_menu = menu_bar.addMenu("幫助(Help)")
+        
+        self.about_action = help_menu.addAction("關於 (About)")
+        self.github_action = help_menu.addAction("在 GitHub 上查看...")
         # =================================================
         
         

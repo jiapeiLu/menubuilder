@@ -10,19 +10,19 @@ Menubuilder - Controller Module
 - 管理整個應用程式的狀態和業務邏輯。
 """
 import functools # 導入 functools 以便使用 wraps
+import webbrowser
 from .logger import log  # 從我們建立的logger模組導入已經配置好的log實例
-#phase1 新增
 from .setting_reader import current_setting
 from .ui import MenuBuilderUI, IconBrowserDialog
 from .data_handler import DataHandler
-#phase2 新增
 from .script_parser import ScriptParser
 from PySide2 import QtWidgets, QtCore
-#phase3 新增
 from .menu_generator import MenuGenerator # 導入 MenuGenerator
 import maya.cmds as cmds
 import os
 from pathlib import Path
+
+from menubuilder import __version__, __author__
 
 def preserve_ui_state(func):
     """
@@ -115,9 +115,13 @@ class MenuBuilderController:
         self.ui.save_action.triggered.connect(self.on_save_config_clicked)
         self.ui.save_as_action.triggered.connect(self.on_file_save_as)
         self.ui.exit_action.triggered.connect(self.ui.close) # 直接連接到視窗的關閉方法
-        # [新增] 連接 OptionBox 核取方塊的狀態變化信號
+        
+        # 連接 OptionBox 核取方塊的狀態變化信號
         self.ui.option_box_checkbox.stateChanged.connect(self.on_option_box_changed)
-
+        
+        # 連接幫助菜單的動作
+        self.ui.about_action.triggered.connect(self.on_about)
+        self.ui.github_action.triggered.connect(self.on_view_on_github)
 
         # 在所有連接完成後，將旗標設為 True
         self._signals_connected = True
@@ -719,3 +723,27 @@ class MenuBuilderController:
             
         finally:
             self.ui.option_box_checkbox.blockSignals(False)
+        
+    def on_about(self):
+        """
+        顯示一個「關於」對話框。
+        """
+        QtWidgets.QMessageBox.about(
+            self.ui,
+            "關於 Menubuilder",
+            f"""
+            <b>Menubuilder for Maya</b>
+            <p>Version {__version__}</p>
+            <p>一個視覺化的 Maya 菜單編輯與管理工具。</p>
+            <p>開發者: <i>{__author__}</i></p>
+            <p>此工具在 AI Assistant 的協作下完成開發。</p>
+            """
+        )
+
+    def on_view_on_github(self):
+        """
+        在預設的網頁瀏覽器中打開專案的 GitHub 頁面。
+        """
+        url = "https://github.com/jiapeiLu/menubuilder"
+        log.info(f"正在打開網頁: {url}")
+        webbrowser.open(url)
