@@ -498,6 +498,44 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             pixmap = icon.pixmap(32, 32)
             self.icon_preview.setPixmap(pixmap)
 
+    def set_item_highlight(self, item_to_highlight: QtWidgets.QTreeWidgetItem, bold: bool = True):
+        """設定指定UI項目的高亮（粗體）狀態。"""
+        if not item_to_highlight:
+            return
+        # --- 設定字體為粗體 (不變) ---
+        font = item_to_highlight.font(0)
+        font.setBold(bold)
+        item_to_highlight.setFont(0, font)
+
+        # --- [新增] 設定背景顏色 ---
+        if bold:
+            # 設定一個高亮的顏色 (這是一個中性偏藍的灰色，適合暗色主題)
+            # 您可以隨意更換成您喜歡的任何顏色代碼
+            highlight_color = QtGui.QColor("#34532D")
+            item_to_highlight.setBackground(0, QtGui.QBrush(highlight_color))
+        else:
+            # 如果是取消高亮，則恢復預設背景 (透明)
+            item_to_highlight.setBackground(0, QtGui.QBrush())
+
+    def clear_all_highlights(self):
+        """清除樹狀視圖中所有項目的高亮狀態，使其恢復正常字體。"""
+        iterator = QtWidgets.QTreeWidgetItemIterator(self.menu_tree_view)
+        while iterator.value():
+            item = iterator.value()
+            
+            # 檢查並恢復字體
+            font = item.font(0)
+            if font.bold():
+                font.setBold(False)
+                item.setFont(0, font)
+
+            # [新增] 檢查並恢復背景色
+            # 獲取當前背景筆刷，如果它不是預設的透明樣式，就清除它
+            if item.background(0).style() != QtCore.Qt.NoBrush:
+                 item.setBackground(0, QtGui.QBrush())
+
+            iterator += 1
+
 
 class IconBrowserDialog(QtWidgets.QDialog):
     """

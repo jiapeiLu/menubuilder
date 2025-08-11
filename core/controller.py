@@ -77,7 +77,7 @@ class MenuBuilderController:
         self.current_menu_data = [] # 用來儲存當前編輯的菜單資料
         self.current_selected_script_path = None # 用於儲存當前腳本的路徑
         self.current_config_name = None # 用於儲存當前設定檔名稱
-        self.current_edit_item_data = None # 用於追蹤當前正在編輯的項目
+        self.current_edit_item = None # 用於追蹤當前正在編輯的項目
         self._signals_connected = False # 初始化信號連接旗標 AI 強烈建議加上避免重覆C++底層重覆呼叫?
         self._load_initial_data()
         self._connect_signals()
@@ -358,22 +358,21 @@ class MenuBuilderController:
         item_data = item.data(0, QtCore.Qt.UserRole)
         if not item_data:
             log.debug("雙擊的是一個文件夾，無操作。")
-            self.current_edit_item_data = None
+            self.current_edit_item = None
         else:
             log.info(f"正在編輯項目: {item_data.menu_label}")
-            self.current_edit_item_data = item_data
+            self.current_edit_item = item
         
         # 統一呼叫刷新函式
         self._refresh_editor_panel()
 
-    # [修改] on_add_item_clicked 方法，使其能處理更新邏輯
     @preserve_ui_state
     def on_add_item_clicked(self):
         """
         處理「新增/更新」按鈕的點擊事件。
 
         此函式具有雙重職責：
-        - 如果 `self.current_edit_item_data` 有值 (處於編輯模式)，則將
+        - 如果 `self.current_edit_item` 有值 (處於編輯模式)，則將
           UI 面板的內容更新到該資料物件上。
         - 如果為 `None` (處於新增模式)，則創建一個新的資料物件並附加到列表中。
         
@@ -387,22 +386,23 @@ class MenuBuilderController:
         # 先從UI同步最新的資料狀態
         self._sync_data_from_ui()
 
-        if self.current_edit_item_data:
+        if self.current_edit_item:
             # --- 執行更新邏輯 ---
-            log.info(f"更新項目 '{self.current_edit_item_data.menu_label}'...")
+            item_data_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole)
+            log.info(f"更新項目 '{item_data_to_update.menu_label}'...")
             # 直接修改記憶體中原有的 MenuItemData 物件的屬性
             # 因為 item_data 是 class 物件，這裡是引用，所以修改會生效
-            self.current_edit_item_data.menu_label = edited_data.menu_label
-            self.current_edit_item_data.sub_menu_path = edited_data.sub_menu_path
-            self.current_edit_item_data.order = edited_data.order
-            self.current_edit_item_data.icon_path = edited_data.icon_path
-            #self.current_edit_item_data.is_dockable = edited_data.is_dockable
-            self.current_edit_item_data.is_option_box = edited_data.is_option_box
-            self.current_edit_item_data.function_str = edited_data.function_str
+            item_data_to_update.menu_label = edited_data.menu_label
+            item_data_to_update.sub_menu_path = edited_data.sub_menu_path
+            item_data_to_update.order = edited_data.order
+            item_data_to_update.icon_path = edited_data.icon_path
+            item_data_to_update.is_option_box = edited_data.is_option_box
+            item_data_to_update.function_str = edited_data.function_str
             
-            # 清除編輯狀態並還原按鈕文字
-            self.current_edit_item_data = None
-            self.ui.add_update_button.setText("新增至結構")
+            # 清除編輯狀態
+            self.current_edit_item = None
+            self._refresh_editor_panel() # 這會清除高亮和還原按鈕文字
+
         else:
             # --- 執行新增邏輯 ---
             self.current_menu_data.append(edited_data)
@@ -426,7 +426,7 @@ class MenuBuilderController:
         self.ui.manual_cmd_input.clear()
         
         # 2. 進入「新增模式」
-        self.current_edit_item_data = None
+        self.current_edit_item = None
         
         # 3. [新增] 呼叫統一的刷新函式來更新UI狀態 (包括禁用 isOptionBox)
         self._refresh_editor_panel()
@@ -568,19 +568,25 @@ class MenuBuilderController:
 
     def _refresh_editor_panel(self):
         """
-        [新增] 一個集中的函式，用來根據 self.current_edit_item_data 的狀態，
-        刷新整個右側編輯面板。
+        [修正後] 根據 self.current_edit_item 的狀態，刷新右側編輯面板。
         """
-        if self.current_edit_item_data:
+        # 先清除所有舊的高亮
+        self.ui.clear_all_highlights()
+
+        if self.current_edit_item:
             # --- 編輯模式 ---
-            self.ui.set_attributes_to_fields(self.current_edit_item_data)
+            # 從 item 中獲取 data
+            item_data = self.current_edit_item.data(0, QtCore.Qt.UserRole)
+            
+            # 高亮當前編輯的項目
+            self.ui.set_item_highlight(self.current_edit_item, True)
+            
+            self.ui.set_attributes_to_fields(item_data)
             self.ui.add_update_button.setText("更新項目 (Update)")
-            # [新增] 啟用核取方塊
             self.ui.option_box_checkbox.setEnabled(True)
         else:
             # --- 新增模式 ---
             self.ui.add_update_button.setText("新增至結構")
-            # [新增] 禁用並取消勾選核取方塊
             self.ui.option_box_checkbox.setEnabled(False)
             self.ui.option_box_checkbox.setChecked(False)
 
@@ -602,7 +608,7 @@ class MenuBuilderController:
     def on_option_box_changed(self, state):
         """[最終版] 當'作為選項框'核取方塊的狀態改變時觸發，並執行最完整的驗證。"""
         if state > 0: # 嘗試勾選
-            if not self.current_edit_item_data:
+            if not self.current_edit_item:
                 QtWidgets.QMessageBox.warning(self.ui, "操作無效", "請先從左側雙擊一個項目以進入編輯模式。")
                 self.ui.option_box_checkbox.setChecked(False)
                 return
@@ -611,7 +617,7 @@ class MenuBuilderController:
             
             # 1. 根據正在編輯的資料，反向找到它在UI中的QTreeWidgetItem
             current_ui_item = None
-            item_path = f"{self.current_edit_item_data.sub_menu_path}/{self.current_edit_item_data.menu_label}" if self.current_edit_item_data.sub_menu_path else self.current_edit_item_data.menu_label
+            item_path = f"{self.current_edit_item.sub_menu_path}/{self.current_edit_item.menu_label}" if self.current_edit_item.sub_menu_path else self.current_edit_item.menu_label
             if item_path in self.ui.item_map:
                 current_ui_item = self.ui.item_map[item_path]
 
@@ -643,8 +649,8 @@ class MenuBuilderController:
             # 4. 根據驗證結果執行操作
             if not error_message:
                 # 驗證通過
-                log.debug(f"項目 '{self.current_edit_item_data.menu_label}' 將成為選項框。")
-                self.current_edit_item_data.is_option_box = True
+                log.debug(f"項目 '{self.current_edit_item.menu_label}' 將成為選項框。")
+                self.current_edit_item.is_option_box = True
                 self.ui.populate_menu_tree(self.current_menu_data)
                 return
             else:
@@ -653,8 +659,8 @@ class MenuBuilderController:
                 self.ui.option_box_checkbox.setChecked(False)
         
         else: # 取消勾選
-            if self.current_edit_item_data:
-                self.current_edit_item_data.is_option_box = False
+            if self.current_edit_item:
+                self.current_edit_item.is_option_box = False
                 self.ui.populate_menu_tree(self.current_menu_data)
 
     @preserve_ui_state
