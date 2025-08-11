@@ -419,14 +419,19 @@ class MenuBuilderController:
     def on_context_add_under(self, parent_path: str):
         """在指定的父路徑下準備新增一個項目。"""
         log.debug(f"準備在 '{parent_path}' 下新增項目。")
-        self.on_context_send_path(parent_path) # 直接復用上面的函式來清空和設定路徑
-        # 將清空項目移到從 send path 到 add under
+        
+        # 1. 準備編輯器欄位
+        self.ui.path_input.setText(parent_path)
         self.ui.label_input.clear()
         self.ui.manual_cmd_input.clear()
+        
+        # 2. 進入「新增模式」
         self.current_edit_item_data = None
-        self.ui.add_update_button.setText("新增至結構")
-        self.ui.label_input.setFocus() # 將游標焦點設在標籤輸入框，方便使用者輸入
+        
+        # 3. [新增] 呼叫統一的刷新函式來更新UI狀態 (包括禁用 isOptionBox)
+        self._refresh_editor_panel()
 
+        self.ui.label_input.setFocus()
 
     @preserve_ui_state
     def on_context_delete(self, item: QtWidgets.QTreeWidgetItem):
@@ -567,13 +572,17 @@ class MenuBuilderController:
         刷新整個右側編輯面板。
         """
         if self.current_edit_item_data:
-            # 如果有正在編輯的項目，用它的資料填充UI
+            # --- 編輯模式 ---
             self.ui.set_attributes_to_fields(self.current_edit_item_data)
             self.ui.add_update_button.setText("更新項目 (Update)")
+            # [新增] 啟用核取方塊
+            self.ui.option_box_checkbox.setEnabled(True)
         else:
-            # 如果沒有正在編輯的項目，可以選擇清空或保持原樣
-            # 我們這裡保持原樣，只還原按鈕文字
+            # --- 新增模式 ---
             self.ui.add_update_button.setText("新增至結構")
+            # [新增] 禁用並取消勾選核取方塊
+            self.ui.option_box_checkbox.setEnabled(False)
+            self.ui.option_box_checkbox.setChecked(False)
 
     def _apply_option_box_change(self, item_data_to_change, should_be_option_box):
         """

@@ -131,8 +131,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.icon_input.textChanged.connect(self.update_icon_preview)
         # -----------------------------------------------------------------
         
-        #self.dockable_checkbox = QtWidgets.QCheckBox("可停靠介面 (IsDockableUI)")
         self.option_box_checkbox = QtWidgets.QCheckBox("作為選項框 (IsOptionBox)")
+        self.option_box_checkbox.setEnabled(False)
 
         form_layout.addRow("菜單標籤 (Label):", self.label_input)
         form_layout.addRow("菜單路徑 (Path):", self.path_input)
@@ -141,7 +141,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         form_layout.addRow("圖示路徑 (Icon):", icon_path_layout)
         form_layout.addRow("預覽 (Preview):", self.icon_preview)
         
-        #form_layout.addRow(self.dockable_checkbox)
         form_layout.addRow(self.option_box_checkbox)
 
         self.attribute_box.setLayout(form_layout)
