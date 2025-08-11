@@ -611,6 +611,22 @@ class DraggableTreeWidget(QtWidgets.QTreeWidget):
         target_item = self.itemAt(event.pos())
         indicator = self.dropIndicatorPosition()
 
+        if not source_item:
+            event.ignore(); return
+
+        # --- [核心修正] 新增對目標的驗證邏輯 ---
+        if target_item:
+            target_data = target_item.data(0, QtCore.Qt.UserRole)
+            # 規則：如果目標是一個選項框，並且使用者試圖將項目拖放到它“之上”(OnItem)
+            # 那麼這次操作是無效的。
+            if (target_data and target_data.is_option_box and 
+                indicator == QtWidgets.QAbstractItemView.OnItem):
+                
+                log.warning("非法操作：不能將項目拖放到一個已存在的選項框之上。")
+                event.ignore() # 忽略並取消這次拖放
+                return
+        # --- 驗證結束 ---
+
         # 1. 讓Qt先完成所有視覺上的移動
         super(DraggableTreeWidget, self).dropEvent(event)
         

@@ -557,24 +557,64 @@ class MenuBuilderController:
         # 刷新右側面板
         self._refresh_editor_panel()
 
-
-
     @preserve_ui_state
     def on_option_box_changed(self, state):
-        """[重構後] 當勾選或取消勾選時，只更新資料，然後刷新。"""
-        if not self.current_edit_item_data:
-            if state: self.ui.option_box_checkbox.setChecked(False) # 復原勾選
-            return
+        """[最終版] 當'作為選項框'核取方塊的狀態改變時觸發，並執行最完整的驗證。"""
+        if state > 0: # 嘗試勾選
+            if not self.current_edit_item_data:
+                QtWidgets.QMessageBox.warning(self.ui, "操作無效", "請先從左側雙擊一個項目以進入編輯模式。")
+                self.ui.option_box_checkbox.setChecked(False)
+                return
 
-        is_checked = state > 0
+            # --- [核心修正] 執行更嚴謹的父級驗證 ---
+            
+            # 1. 根據正在編輯的資料，反向找到它在UI中的QTreeWidgetItem
+            current_ui_item = None
+            item_path = f"{self.current_edit_item_data.sub_menu_path}/{self.current_edit_item_data.menu_label}" if self.current_edit_item_data.sub_menu_path else self.current_edit_item_data.menu_label
+            if item_path in self.ui.item_map:
+                current_ui_item = self.ui.item_map[item_path]
+
+            if not current_ui_item:
+                log.error("無法在UI樹中找到對應的編輯項目。")
+                self.ui.option_box_checkbox.setChecked(False)
+                return
+
+            # 2. 找到在它視覺正上方的項目
+            item_above = self.ui.menu_tree_view.itemAbove(current_ui_item)
+
+            # 3. 執行新的驗證規則
+            error_message = ""
+            if not item_above:
+                # 規則1 (部分情況): 如果 itemAbove 不存在，代表它可能是根目錄的第一個項目
+                error_message = "項目不能作為其所在層級的第一個選項框。"
+            elif current_ui_item.parent() != item_above.parent():
+                 # 規則1 (另一種情況): 如果父級不同，也代表它是新群組的第一個
+                error_message = "項目不能作為其所在層級的第一個選項框。"
+            else:
+                parent_candidate_data = item_above.data(0, QtCore.Qt.UserRole)
+                if not parent_candidate_data:
+                    # 上方是個文件夾，不是功能項
+                    error_message = "一個項目要成為選項框，它的正上方必須是一個有效的功能菜單項。"
+                elif parent_candidate_data.is_option_box:
+                    # 規則2: 上方項目已經是選項框
+                    error_message = "一個項目不能成為另一個選項框的選項框。"
+
+            # 4. 根據驗證結果執行操作
+            if not error_message:
+                # 驗證通過
+                log.debug(f"項目 '{self.current_edit_item_data.menu_label}' 將成為選項框。")
+                self.current_edit_item_data.is_option_box = True
+                self.ui.populate_menu_tree(self.current_menu_data)
+                return
+            else:
+                # 驗證失敗
+                QtWidgets.QMessageBox.warning(self.ui, "操作無效", error_message)
+                self.ui.option_box_checkbox.setChecked(False)
         
-        # 不再進行複雜的父級驗證，因為拖放已經是主要手段
-        # 我們只信任使用者的操作
-        self.current_edit_item_data.is_option_box = is_checked
-        log.debug(f"透過核取方塊將 '{self.current_edit_item_data.menu_label}' 的 is_option_box 設為: {is_checked}")
-
-        # 直接用當前的資料刷新UI即可
-        self.ui.populate_menu_tree(self.current_menu_data)
+        else: # 取消勾選
+            if self.current_edit_item_data:
+                self.current_edit_item_data.is_option_box = False
+                self.ui.populate_menu_tree(self.current_menu_data)
 
     @preserve_ui_state
     def on_drop_event_completed(self, source_item: QtWidgets.QTreeWidgetItem, 
