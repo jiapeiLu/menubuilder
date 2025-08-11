@@ -546,6 +546,16 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
             iterator += 1
 
+    def auto_expand_single_root(self):
+        """
+        檢查樹狀視圖的頂層項目。如果只有一個，就自動將其展開。
+        """
+        # topLevelItemCount() 會返回根級別的項目數量
+        if self.menu_tree_view.topLevelItemCount() == 1:
+            log.debug("檢測到單一根目錄，自動展開。")
+            # topLevelItem(0) 獲取第一個頂層項目
+            root_item = self.menu_tree_view.topLevelItem(0)
+            root_item.setExpanded(True) # 將其設為展開狀態
 
 class IconBrowserDialog(QtWidgets.QDialog):
     """

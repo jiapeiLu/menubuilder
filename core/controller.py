@@ -139,7 +139,8 @@ class MenuBuilderController:
         # 如果成功載入資料，則刷新UI
         if self.current_menu_data:
             self.ui.populate_menu_tree(self.current_menu_data)
-        self._update_ui_title() # 更新UI標題
+            self.ui.auto_expand_single_root() # <-- [新增]
+        self._update_ui_title()
 
     def show_ui(self):
         log.info("顯示 Menubuilder UI。")
@@ -306,7 +307,9 @@ class MenuBuilderController:
         
         # 刷新UI
         self.ui.populate_menu_tree(self.current_menu_data)
-        self._update_ui_title() # 更新UI標題
+        self.ui.auto_expand_single_root() # <-- [新增]
+        
+        self._update_ui_title()
         log.info(f"已成功開啟並載入設定檔: {file_path}")
 
     def on_file_merge(self):
@@ -326,6 +329,7 @@ class MenuBuilderController:
             self.current_menu_data.extend(new_data)
             # 刷新UI
             self.ui.populate_menu_tree(self.current_menu_data)
+            self.ui.auto_expand_single_root() # <-- [新增]
             log.info(f"已成功將 {file_path} 的內容合併至當前設定。")
 
     def on_file_save_as(self):
