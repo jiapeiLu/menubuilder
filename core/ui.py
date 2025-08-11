@@ -50,20 +50,15 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         # --- 左側: 現有菜單結構 ---
         left_layout = QtWidgets.QVBoxLayout()
-        left_label = QtWidgets.QLabel("現有菜單結構 (Menu Configuration)")
+        self.left_label = QtWidgets.QLabel("現有菜單結構 (Menu Configuration)")
         self.menu_tree_view = DraggableTreeWidget()
         self.menu_tree_view.setHeaderLabels(["菜單項 (Menu Item)", "路徑 (Path)"])
         self.menu_tree_view.setColumnWidth(0, 200)
-        # 啟用Qt內建拖放功能
-        #self.menu_tree_view.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
-        #self.menu_tree_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-        #self.menu_tree_view.setDragEnabled(True)
-        #self.menu_tree_view.setAcceptDrops(True)
-        #self.menu_tree_view.setDropIndicatorShown(True)
+
         # 啟用自訂右鍵選單
         self.menu_tree_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
-        left_layout.addWidget(left_label)
+        left_layout.addWidget(self.left_label)
         left_layout.addWidget(self.menu_tree_view)
         # (按鈕暫時先不加，或先禁用)
 
@@ -131,8 +126,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.icon_preview.setStyleSheet("border: 1px solid #555; background-color: #333; border-radius: 4px;")
         self.icon_preview.setAlignment(QtCore.Qt.AlignCenter)
         self.icon_preview.setText("無")
-        
-
         
         # 預覽更新 訊息
         self.icon_input.textChanged.connect(self.update_icon_preview)
@@ -475,6 +468,14 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             # action_add_dockable_root.triggered.connect(...)
 
         menu.exec_(self.menu_tree_view.mapToGlobal(point))
+
+    def update_tree_view_title(self, filename: str):
+        """更新左側樹狀視圖的標題以顯示當前檔名。"""
+        if filename:
+            self.left_label.setText(f"現有菜單結構 - {filename}.json")
+        else:
+            self.left_label.setText("現有菜單結構 (Menu Configuration)")
+
 
     def update_icon_preview(self, path: str):
         """

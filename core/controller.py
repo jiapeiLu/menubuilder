@@ -74,10 +74,11 @@ class MenuBuilderController:
         self.data_handler = DataHandler()
         self.menu_generator = MenuGenerator() # 實例化 MenuGenerator
         self.ui = MenuBuilderUI(self)
-        self.current_menu_data = [] # 重要：用來儲存當前編輯的菜單資料
-        self.current_selected_script_path = None # <-- 用於儲存當前腳本的路徑
-        self.current_edit_item_data = None # [新增] 用於追蹤當前正在編輯的項目
-        self._signals_connected = False # [新增] 初始化信號連接旗標 AI 強烈建議加上避免重覆C++底層重覆呼叫?
+        self.current_menu_data = [] # 用來儲存當前編輯的菜單資料
+        self.current_selected_script_path = None # 用於儲存當前腳本的路徑
+        self.current_config_name = None # 用於儲存當前設定檔名稱
+        self.current_edit_item_data = None # 用於追蹤當前正在編輯的項目
+        self._signals_connected = False # 初始化信號連接旗標 AI 強烈建議加上避免重覆C++底層重覆呼叫?
         self._load_initial_data()
         self._connect_signals()
         log.info("MenuBuilderController 初始化完成。")
@@ -126,6 +127,7 @@ class MenuBuilderController:
     def _load_initial_data(self):
         """載入設定中指定的預設菜單設定檔。"""
         default_config = current_setting.get("menuitems")
+        self.current_config_name = default_config # [新增] 記錄檔名
         if not default_config:
             log.warning("在 setting.json 中未指定預設的 'menuitems'。")
             return
@@ -138,6 +140,7 @@ class MenuBuilderController:
         # 如果成功載入資料，則刷新UI
         if self.current_menu_data:
             self.ui.populate_menu_tree(self.current_menu_data)
+        self._update_ui_title() # 更新UI標題
 
     def show_ui(self):
         log.info("顯示 Menubuilder UI。")
@@ -296,13 +299,15 @@ class MenuBuilderController:
         
         # 從完整路徑中提取不含副檔名的檔名
         config_name = Path(file_path).stem
-        
+        self.current_config_name = config_name # 記錄檔名
+
         # 載入新資料並完全覆蓋現有資料
         new_data = self.data_handler.load_menu_config(config_name)
         self.current_menu_data = new_data
         
         # 刷新UI
         self.ui.populate_menu_tree(self.current_menu_data)
+        self._update_ui_title() # 更新UI標題
         log.info(f"已成功開啟並載入設定檔: {file_path}")
 
     def on_file_merge(self):
@@ -337,8 +342,9 @@ class MenuBuilderController:
         self._sync_data_from_ui()
 
         config_name = Path(file_path).stem
-        # 使用更新後的資料進行儲存
+        self.current_config_name = config_name # [新增] 記錄檔名
         self.data_handler.save_menu_config(config_name, self.current_menu_data)
+        self._update_ui_title() # [新增] 更新UI標題
         log.info(f"已將當前設定另存為: {file_path}")
 
     def on_tree_item_double_clicked(self, item, column):
@@ -551,6 +557,10 @@ class MenuBuilderController:
         log.debug(f"接收到選擇的圖示路徑: {icon_path}")
         self.ui.icon_input.setText(icon_path)
     
+    def _update_ui_title(self):
+        """一個新的輔助函式，用來通知UI更新標題。"""
+        self.ui.update_tree_view_title(self.current_config_name)
+
     def _refresh_editor_panel(self):
         """
         [新增] 一個集中的函式，用來根據 self.current_edit_item_data 的狀態，
