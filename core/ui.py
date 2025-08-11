@@ -15,7 +15,17 @@ from .logger import log
 import maya.cmds as cmds
 import functools
 
+from shiboken2 import wrapInstance
+import maya.OpenMayaUI as omui
+
 from menubuilder import __version__
+
+def get_maya_main_window():
+    """Get Maya main window"""
+    main_window_ptr = omui.MQtUtil.mainWindow()
+    if main_window_ptr:
+        return wrapInstance(int(main_window_ptr), QtWidgets.QWidget)
+    return None
 
 class MenuBuilderUI(QtWidgets.QMainWindow):
     """
@@ -25,14 +35,17 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
     它接收來自 Controller 的指令來更新顯示，並在使用者操作時發出信號(signals)
     通知 Controller。它本身不包含任何業務邏輯。
     """
-    def __init__(self, controller):
+    def __init__(self, controller, parent = None):
         """
         初始化 MenuBuilderUI 主視窗。
 
         Args:
             controller (MenuBuilderController): 控制器物件的實例，用於信號連接。
         """
-        super().__init__()
+        if parent is None:
+            parent = get_maya_main_window()
+        super(MenuBuilderUI, self).__init__(parent)
+
         self.controller = controller
         self.setWindowTitle(f"Menu Builder v{__version__}")
         self.setGeometry(300, 300, 800, 700)
