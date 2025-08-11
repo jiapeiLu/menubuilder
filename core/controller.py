@@ -100,7 +100,8 @@ class MenuBuilderController:
         self.ui.icon_buildin_btn.clicked.connect(self.on_browse_icon_clicked)
         self.ui.icon_browse_btn.clicked.connect(self.on_browse_custom_icon_clicked) #[新增] 連接圖示瀏覽按鈕的點擊信號
         self.ui.add_update_button.clicked.connect(self.on_add_item_clicked)
-        self.ui.delete_button.clicked.connect(self.on_delete_item_clicked)
+        #self.ui.delete_button.clicked.connect(self.on_delete_item_clicked)
+        self.ui.save_button.clicked.connect(self.on_save_config_clicked)
         self.ui.build_menus_button.clicked.connect(self.on_build_menu_clicked)
         self.ui.menu_tree_view.itemDoubleClicked.connect(self.on_tree_item_double_clicked)
         self.ui.menu_tree_view.customContextMenuRequested.connect(self.ui.on_tree_context_menu)
@@ -108,8 +109,6 @@ class MenuBuilderController:
         # [修改] 連接到新的自訂信號
         self.ui.menu_tree_view.drop_event_completed.connect(self.on_drop_event_completed)
 
-
-        #self.ui.dockable_checkbox.stateChanged.connect(self.on_dockable_checkbox_changed)
         # 連接檔案菜單的動作
         self.ui.open_action.triggered.connect(self.on_file_open)
         self.ui.merge_action.triggered.connect(self.on_file_merge)
