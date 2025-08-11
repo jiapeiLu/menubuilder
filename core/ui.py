@@ -427,16 +427,21 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         if item:
             # --- 如果點擊在一個項目上 ---
             item_data = item.data(0, QtCore.Qt.UserRole)
-            path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
+            
+            # [新增] 為所有項目（包括文件夾）增加重命名選項
+            action_rename = menu.addAction("重新命名 (Rename)")
+            # 連接到QTreeWidget的內建editItem方法，非常方便
+            action_rename.triggered.connect(lambda: self.menu_tree_view.editItem(item))
 
-            if item_data:
-                action_edit = menu.addAction("編輯此項目 (Edit)")
+            if item_data: # 這是個菜單項
+                action_edit = menu.addAction("編輯此項目屬性 (Edit Properties)")
                 action_edit.triggered.connect(
                     functools.partial(self.controller.on_tree_item_double_clicked, item, 0)
                 )
             
             menu.addSeparator()
 
+            path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
             action_add_under = menu.addAction("在此路徑下新增項目...")
             action_add_under.triggered.connect(
                 functools.partial(self.controller.on_context_add_under, path_for_actions)
