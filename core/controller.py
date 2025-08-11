@@ -470,33 +470,55 @@ class MenuBuilderController:
             self.ui.populate_menu_tree(self.current_menu_data)
     
     
-    def on_tree_item_renamed(self, item, column):
-        """當樹狀視圖中的項目文字被使用者編輯後觸發。"""
-        # 為了防止在我們自己刷新UI時觸發無限循環，需要一個旗標來暫時禁用此功能
-        if not self.ui.menu_tree_view.signalsBlocked():
-            
-            # 獲取舊的路徑和新的名稱
-            # 獲取舊路徑比較複雜，我們需要一個方法來從item反向推導
-            # 但更簡單的方法是，在編輯前就記錄下舊的狀態
-            # 這裡我們先用一個簡化的邏輯，假設我們可以拿到舊路徑
-            
-            # 重新思考：一個更穩健的方法是直接在觸發時同步所有資料
-            # 因為我們無法輕易得知「舊的」名稱是什麼
-            
-            log.info("偵測到項目名稱變更，準備同步所有UI狀態...")
-            
-            # 使用我們已經存在的同步函式，它會處理好一切
-            # 因為 get_ordered_data_from_tree 會重新計算所有路徑
+    def on_tree_item_renamed(self, item: QtWidgets.QTreeWidgetItem, column: int):
+        """
+        [最終版] 當項目文字被編輯後觸發，並完美保持自身及其後代的展開狀態。
+        """
+        if self.ui.menu_tree_view.signalsBlocked():
+            return
+
+        # 1. 獲取新舊名稱和路徑
+        new_name = item.text(0)
+        old_path = None
+        for path, ui_item in self.ui.item_map.items():
+            if ui_item == item:
+                old_path = path
+                break
+        
+        if old_path is None: # 安全檢查
             self._sync_data_from_ui()
-            
-            # 為了讓UI上的顯示（特別是文件夾的路徑）也更新，
-            # 在同步資料後，最好再用更新後的資料刷新一次UI
-            # 為了避免無限循環，我們在刷新前後阻擋/解除信號
-            self.ui.menu_tree_view.blockSignals(True)
             self.ui.populate_menu_tree(self.current_menu_data)
-            self.ui.menu_tree_view.blockSignals(False)
-            
-            log.info("項目重命名完成，資料與UI已同步。")
+            return
+
+        old_name = old_path.split('/')[-1]
+        if new_name == old_name: return
+
+        parent_path = "/".join(old_path.split('/')[:-1])
+        new_path = f"{parent_path}/{new_name}" if parent_path else new_name
+
+        # 2. 記錄原始的展開狀態
+        expansion_state_before = self.ui.get_expansion_state()
+
+        # 3. [核心修正] 創建新的展開狀態集合
+        new_expansion_state = set()
+        for path in expansion_state_before:
+            # 檢查路徑是否正好是被重命名的路徑，或者是它的子路徑
+            if path == old_path or path.startswith(old_path + '/'):
+                corrected_path = path.replace(old_path, new_path, 1)
+                new_expansion_state.add(corrected_path)
+            else:
+                new_expansion_state.add(path)
+        
+        # 4. 執行同步和UI刷新
+        self._sync_data_from_ui()
+        self.ui.menu_tree_view.blockSignals(True)
+        self.ui.populate_menu_tree(self.current_menu_data)
+        
+        # 5. 使用新的展開狀態來還原UI
+        self.ui.set_expansion_state(new_expansion_state)
+        
+        self.ui.menu_tree_view.blockSignals(False)
+        log.info("項目重命名完成，已恢復展開狀態。")
             
     def on_browse_icon_clicked(self):
         """當'瀏覽圖示'按鈕被點擊時，創建並顯示圖示瀏覽器。"""
