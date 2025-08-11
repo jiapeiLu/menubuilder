@@ -33,7 +33,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         super().__init__()
         self.controller = controller
         self.setWindowTitle("Menu Builder v1.0")
-        self.setGeometry(300, 300, 1000, 700)
+        self.setGeometry(300, 300, 800, 700)
         
         # 儲存 QTreeWidgetItems 以便查找
         self.item_map = {}
@@ -45,26 +45,33 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         main_widget = QtWidgets.QWidget()
         self.setCentralWidget(main_widget)
         
-        # --- 主水平佈局 (左側 vs 右側) ---
-        main_layout = QtWidgets.QHBoxLayout(main_widget)
+        # [核心修改] 
+        # 我們不再直接在 main_widget 上使用 QHBoxLayout
+        # 而是先創建 QSplitter，然後讓一個 QVBoxLayout 來容納這個 QSplitter
+        # 這是為了確保 QSplitter 能填滿整個視窗
+        top_level_layout = QtWidgets.QVBoxLayout(main_widget)
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+        top_level_layout.addWidget(splitter)
 
-        # --- 左側: 現有菜單結構 ---
-        left_layout = QtWidgets.QVBoxLayout()
+        # 1. 創建一個容器 QWidget
+        left_container_widget = QtWidgets.QWidget()
+        left_layout = QtWidgets.QVBoxLayout(left_container_widget)
+
         self.left_label = QtWidgets.QLabel("現有菜單結構 (Menu Configuration)")
         self.menu_tree_view = DraggableTreeWidget()
-        self.menu_tree_view.setHeaderLabels(["菜單項 (Menu Item)", "路徑 (Path)"])
-        self.menu_tree_view.setColumnWidth(0, 200)
+        self.menu_tree_view.setHeaderLabels(["菜單結構 (Menu Structure)"])
+        #self.menu_tree_view.setColumnWidth(0, 200)
 
         # 啟用自訂右鍵選單
         self.menu_tree_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         left_layout.addWidget(self.left_label)
         left_layout.addWidget(self.menu_tree_view)
-        # (按鈕暫時先不加，或先禁用)
 
         # --- 右側: 編輯器 ---
-        right_widget = QtWidgets.QWidget()
-        right_layout = QtWidgets.QVBoxLayout(right_widget)
+        # 1. 創建一個容器 QWidget
+        right_container_widget = QtWidgets.QWidget()
+        right_layout = QtWidgets.QVBoxLayout(right_container_widget)
 
         # -- Tab Widget for input method --
         self.input_tabs = QtWidgets.QTabWidget()
@@ -101,8 +108,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.label_input = QtWidgets.QLineEdit()
         self.path_input = QtWidgets.QLineEdit()
         self.path_input.setPlaceholderText("例如: Tools/Modeling")
-        self.order_input = QtWidgets.QSpinBox()
-        self.order_input.setRange(0, 999)
+        #self.order_input = QtWidgets.QSpinBox()
+        #self.order_input.setRange(0, 999)
         # [核心修改] 替換舊的 icon_layout
         # -----------------------------------------------------------------
         # -- Icon Group --
@@ -136,7 +143,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         form_layout.addRow("菜單標籤 (Label):", self.label_input)
         form_layout.addRow("菜單路徑 (Path):", self.path_input)
-        form_layout.addRow("排序順位 (Order):", self.order_input)
+        #form_layout.addRow("排序順位 (Order):", self.order_input)
         # 將UI元件加入 Form Layout
         form_layout.addRow("圖示路徑 (Icon):", icon_path_layout)
         form_layout.addRow("預覽 (Preview):", self.icon_preview)
@@ -162,10 +169,13 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         right_layout.addWidget(self.build_menus_button)
 
 
-        # --- 組合左右佈局 ---
-        main_layout.addLayout(left_layout, stretch=1)
-        main_layout.addWidget(right_widget, stretch=1)
+        # --- [核心修改] 將兩個容器加入 Splitter ---
+        splitter.addWidget(left_container_widget)
+        splitter.addWidget(right_container_widget)
         
+        # [建議] 設定初始的分割比例
+        splitter.setSizes([350, 450]) 
+
         # [新增] 創建頂部菜單欄
         # =================================================
         menu_bar = self.menuBar()
@@ -277,7 +287,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         item_data = MenuItemData(
             menu_label=self.label_input.text(),
             sub_menu_path=self.path_input.text(),
-            order=self.order_input.value(),
+            #order=self.order_input.value(),
             icon_path=self.icon_input.text(),
             #is_dockable=self.dockable_checkbox.isChecked(),
             is_option_box=self.option_box_checkbox.isChecked(),
@@ -387,7 +397,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         # 填入所有對應的欄位
         self.label_input.setText(data.menu_label)
         self.path_input.setText(data.sub_menu_path)
-        self.order_input.setValue(data.order)
+        #self.order_input.setValue(data.order)
         self.icon_input.setText(data.icon_path)
         #self.dockable_checkbox.setChecked(data.is_dockable)
         self.option_box_checkbox.setChecked(data.is_option_box)
