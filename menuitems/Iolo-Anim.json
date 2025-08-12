@@ -1,0 +1,92 @@
+[
+    {
+        "sub_menu_path": "Iolo-AnimTest/Anim",
+        "order": 10,
+        "function_str": "from _project.iolo.menuitems.AnimPageManager import lAnimPageManager; lAnimPageManager.show()",
+        "menu_label": "Anim Page Manager",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Anim",
+        "order": 20,
+        "function_str": "from _project.iolo.menuitems.SkinMeshExporter import lSkinMeshExport; lSkinMeshExport.show()",
+        "menu_label": "Skin Mesh Exporter",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Anim",
+        "order": 30,
+        "function_str": "from aTools.animTools.animBar import animBarUI; animBarUI.show('launch')",
+        "menu_label": "aTool",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Anim",
+        "order": 40,
+        "function_str": "import studiolibrary; studiolibrary.main()",
+        "menu_label": "Studio Library",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Anim",
+        "order": 50,
+        "function_str": "import dwpicker; dwpicker.show()",
+        "menu_label": "Dreamwall Picker",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Anim",
+        "order": 60,
+        "function_str": "import pymaya.scripts.loc_speed as loc_speed; loc_speed.main()",
+        "menu_label": "Create Locator Speed",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Riggin",
+        "order": 70,
+        "function_str": "from _project.iolo.menuitems.RigTool import lRigTool; lRigTool.show()",
+        "menu_label": "Rig Tool",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Utility",
+        "order": 80,
+        "function_str": "import pymaya.lib.pvhelper as pvhelper; pvhelper.DoorPV()",
+        "menu_label": "Create Door Socket",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Utility",
+        "order": 90,
+        "function_str": "import pymaya.lib.pvhelper as pvhelper; import importlib; importlib.reload(pvhelper); pvhelper.create_align_points()",
+        "menu_label": "Create Align Points",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Iolo-AnimTest/Utility",
+        "order": 100,
+        "function_str": "import pymaya.lib.pvhelper as pvhelper; pvhelper.center_mesh_and_align()",
+        "menu_label": "Center Mesh and Align",
+        "module_path": "",
+        "icon_path": "",
+        "is_option_box": false
+    }
+]
