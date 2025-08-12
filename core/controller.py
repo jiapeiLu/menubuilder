@@ -395,31 +395,45 @@ class MenuBuilderController:
     @preserve_ui_state
     def on_add_item_clicked(self):
         """
-        處理「新增/更新」按鈕的點擊事件。
+        [增加狀態重設] 處理「新增/更新」按鈕的點擊事件。
         """
         edited_data = self.ui.get_attributes_from_fields()
-        if not edited_data.menu_label: # 指令可以為空 (作為資料夾)
+        if not edited_data.menu_label:
             log.warning("請確保'菜單標籤'欄位不為空。")
             return
 
-        # --- [核心修正] 在執行操作前，進行名稱衝突驗證 ---
         item_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole) if self.current_edit_item else None
         
         if self._is_name_conflict(edited_data.menu_label, edited_data.sub_menu_path, item_to_update):
-            return # 如果檢測到衝突，則終止操作
-        # --- 驗證結束 ---
+            return
 
+        # 在更新資料前，先同步一次，確保順序正確
         self._sync_data_from_ui()
 
         if self.current_edit_item:
-            # 更新操作 (舊邏輯不變)
+            # --- 更新模式 ---
             item_data_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole)
             log.info(f"更新項目 '{item_data_to_update.menu_label}'...")
             
+            # 更新資料
             item_data_to_update.menu_label = edited_data.menu_label
             item_data_to_update.sub_menu_path = edited_data.sub_menu_path
+            item_data_to_update.icon_path = edited_data.icon_path
+            item_data_to_update.is_option_box = edited_data.is_option_box
+            item_data_to_update.function_str = edited_data.function_str
+            item_data_to_update.command_type = edited_data.command_type
+            
+            # [核心修正] 更新完成後，強制退出編輯模式
+            self.current_edit_item = None
+            
+        else:
+            # --- 新增模式 ---
+            self.current_menu_data.append(edited_data)
+            log.info(f"新增菜單項: {edited_data.menu_label}")
         
+        # 無論是新增還是更新，最後都執行完整的 UI 刷新和狀態重設
         self.ui.populate_menu_tree(self.current_menu_data)
+        self._refresh_editor_panel() # 這一行會處理UI重設和恢復拖曳功能
 
     def on_context_send_path(self, path: str):
         """接收來自右鍵選單的路徑，並更新到UI輸入框中。"""
@@ -568,13 +582,15 @@ class MenuBuilderController:
     @block_ui_signals('menu_tree_view')
     def _refresh_editor_panel(self):
         """
-        [最終修正版] 根據 self.current_edit_item 的狀態，刷新右側編輯面板。
-        此版本透過裝飾器阻斷信號，對意外的UI刷新具有免疫力。
+        [增加編輯器重設] 根據 self.current_edit_item 的狀態，刷新右側編輯面板。
         """
         self.ui.clear_all_highlights()
 
         if self.current_edit_item:
-            # ... (內部的邏輯完全不變)
+            # --- 進入編輯模式 ---
+            self.ui.menu_tree_view.setDragEnabled(False)
+            log.debug("已進入編輯模式，暫時禁用拖曳功能。")
+
             self.ui.set_item_highlight(self.current_edit_item, True)
             item_data = self.current_edit_item.data(0, QtCore.Qt.UserRole)
             if not item_data:
@@ -585,11 +601,24 @@ class MenuBuilderController:
             self.ui.option_box_checkbox.setEnabled(True)
             self.ui.set_attributes_to_fields(item_data)
         else:
-            # --- 新增模式 ---
+            # --- 退出編輯模式 / 處於新增模式 (回到初始狀態) ---
+            self.ui.menu_tree_view.setDragEnabled(True)
+            log.debug("已退出編輯模式，恢復拖曳功能並重設編輯器。")
+            
+            # 恢復按鈕和選項的預設狀態
             self.ui.add_update_button.setText("新增至結構")
             self.ui.python_radio.setChecked(True)
             self.ui.option_box_checkbox.setEnabled(False)
             self.ui.option_box_checkbox.setChecked(False)
+
+            # [核心修正] 將編輯器欄位清空至初始狀態
+            self.ui.label_input.clear()
+            self.ui.icon_input.clear()
+            self.ui.manual_cmd_input.clear()
+            # 根據您的要求，我們刻意保留 self.ui.path_input 的內容
+            
+            # 將指令輸入的分頁切回第一個 ("從檔案解析")
+            self.ui.input_tabs.setCurrentIndex(1)
 
     @preserve_ui_state
     @block_ui_signals('menu_tree_view')
