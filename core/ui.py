@@ -21,10 +21,27 @@ import maya.OpenMayaUI as omui
 from menubuilder import __version__
 
 def get_maya_main_window():
-    """Get Maya main window"""
-    main_window_ptr = omui.MQtUtil.mainWindow()
-    if main_window_ptr:
-        return wrapInstance(int(main_window_ptr), QtWidgets.QWidget)
+    """
+    [最終加固版] 獲取Maya主視窗的 PySide2 物件指標。
+    這個方法比 MQtUtil.mainWindow() 更穩健，尤其是在啟動過程中。
+    """
+    try:
+        # 遍歷應用程式的所有頂層視窗
+        for widget in QtWidgets.QApplication.topLevelWidgets():
+            # 尋找物件名稱為 "MayaWindow" 的 QMainWindow
+            if widget.objectName() == "MayaWindow":
+                return widget
+    except Exception as e:
+        log.error(f"尋找Maya主視窗時出錯: {e}")
+    
+    # 如果上面的方法失敗，再嘗試使用舊的方法作為備用
+    try:
+        main_window_ptr = omui.MQtUtil.mainWindow()
+        if main_window_ptr:
+            return wrapInstance(int(main_window_ptr), QtWidgets.QWidget)
+    except Exception as e:
+        log.error(f"備用方法 MQtUtil.mainWindow() 也失敗了: {e}")
+
     return None
 
 class MenuBuilderUI(QtWidgets.QMainWindow):
