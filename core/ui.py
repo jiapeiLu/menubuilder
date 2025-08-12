@@ -265,14 +265,21 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 menu_qitem.setFlags(flags)
                 menu_qitem.setForeground(0, QtGui.QColor("#666666"))
             elif item_data.is_option_box:
+                # [核心修正] 設定 Option Box 的旗標：可以啟用和選擇，但禁止拖曳
+                flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
+                menu_qitem.setFlags(flags)
+
+                # 以下的視覺樣式設定不變
                 menu_qitem.setToolTip(0, f"此項目是一個選項框(Option Box)，\n隸屬於它上方的菜單項。")
                 font = menu_qitem.font(0)
                 font.setItalic(True)
                 menu_qitem.setFont(0, font)
-                menu_qitem.setForeground(0, QtGui.QColor("#A0A0A0"))
-            
+                menu_qitem.setForeground(0, QtGui.QColor("#BF6969"))
+
             final_path = f"{item_data.sub_menu_path}/{item_data.menu_label}" if item_data.sub_menu_path else item_data.menu_label
             self.item_map[final_path] = menu_qitem
+
+        #self.set_item_highlight(self.controller.current_edit_item, bold=True)
 
         self.menu_tree_view.blockSignals(False)
     
@@ -607,25 +614,34 @@ class DraggableTreeWidget(QtWidgets.QTreeWidget):
         self.setDropIndicatorShown(True)
 
     def dropEvent(self, event: QtGui.QDropEvent):
-        """[最終版] 先執行預設的視覺移動，然後再發出包含完整上下文的信號。"""
-        source_item = self.currentItem()
+        """
+        [增加核心規則驗證] 在放下事件發生時，先驗證操作是否符合層級結構原則。
+        """
         target_item = self.itemAt(event.pos())
         indicator = self.dropIndicatorPosition()
 
-        if not source_item:
-            event.ignore(); return
-
-        if target_item:
+        # --- [核心修正] 執行原則一的驗證 ---
+        # 判斷使用者是否試圖將一個項目，拖曳到另一個「功能項目」的「上面」(OnItem)，
+        # 以使其成為子項目。這是不被允許的。
+        if indicator == QtWidgets.QAbstractItemView.OnItem and target_item:
             target_data = target_item.data(0, QtCore.Qt.UserRole)
-            if (target_data and target_data.is_option_box and 
-                indicator == QtWidgets.QAbstractItemView.OnItem):
-                
-                log.warning("非法操作：不能將項目拖放到一個已存在的選項框之上。")
-                event.ignore()
-                return
+            
+            # 如果 target_data 存在，代表目標是一個「功能項目」，而不是一個「資料夾」。
+            if target_data:
+                log.warning("操作被阻止：不能將項目拖曳為另一個功能項目的子級。只能拖曳至資料夾中，或項目的前後位置。")
+                event.ignore() # 忽略（拒絕）這次放下操作
+                return         # 提前終止函式
 
+        # --- 驗證通過後，才執行原有的邏輯 ---
+        source_item = self.currentItem()
+        if not source_item:
+            event.ignore()
+            return
+
+        # 執行 Qt 預設的視覺移動
         super(DraggableTreeWidget, self).dropEvent(event)
         
+        # 發射信號，通知 Controller 資料已變更
         self.drop_event_completed.emit(source_item, target_item, indicator)
         
         event.accept()

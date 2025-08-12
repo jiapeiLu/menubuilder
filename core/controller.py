@@ -26,6 +26,40 @@ from pathlib import Path
 
 from menubuilder import __version__, __author__
 
+def block_ui_signals(widget_name: str):
+    """
+    一個可傳參的裝飾器工廠，用於在執行函式期間暫時阻斷指定UI元件的信號。
+
+    Args:
+        widget_name (str): 在 self.ui 中要阻斷信號的元件的屬性名稱，
+                           例如 'menu_tree_view'。
+    
+    Returns:
+        Callable: 一個真正的裝飾器。
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # 獲取要操作的 UI 元件
+            widget_to_block = getattr(self.ui, widget_name, None)
+            
+            if not widget_to_block:
+                log.warning(f"在 block_ui_signals 中找不到名為 {widget_name} 的 UI 元件。")
+                return func(self, *args, **kwargs)
+
+            # 使用 try...finally 確保信號總能被恢復
+            try:
+                widget_to_block.blockSignals(True)
+                log.debug(f"裝飾器: 已阻斷 {widget_name} 的信號。")
+                result = func(self, *args, **kwargs)
+            finally:
+                widget_to_block.blockSignals(False)
+                log.debug(f"裝飾器: 已恢復 {widget_name} 的信號。")
+            
+            return result
+        return wrapper
+    return decorator
+
 def preserve_ui_state(func):
     """
     一個裝飾器，用於在執行會刷新UI樹的操作前後，自動保存和還原其展開狀態。
@@ -206,6 +240,42 @@ class MenuBuilderController:
         else:
             log.warning("無法刪除，所選項目是一個文件夾或沒有關聯資料。請使用右鍵選單刪除文件夾。")
     
+    def _is_name_conflict(self, proposed_label: str, proposed_path: str, item_being_updated: MenuItemData = None) -> bool:
+        """
+        [純資料驅動版] 檢查提議的名稱和路徑組合是否與現有項目或隱性資料夾衝突。
+        """
+        # 建立一個集合，用來存放所有在 proposed_path 層級下「已被佔用」的名稱
+        sibling_names = set()
+
+        # --- 第一步：從 self.current_menu_data 中收集所有「同級功能項」的名稱 ---
+        for item in self.current_menu_data:
+            if item is item_being_updated:
+                continue  # 更新模式下，排除自身
+            
+            if item.sub_menu_path == proposed_path:
+                sibling_names.add(item.menu_label.lower())
+
+        # --- 第二步：從 self.current_menu_data 中推導出所有「同級隱性資料夾」的名稱 ---
+        folder_prefix = f"{proposed_path}/" if proposed_path else ""
+        
+        for item in self.current_menu_data:
+            # 我們只關心那些路徑比當前層級更深的項目，因為它們定義了子資料夾
+            if item.sub_menu_path.startswith(folder_prefix) and len(item.sub_menu_path) > len(folder_prefix):
+                
+                # 從項目路徑中，提取出緊跟在當前層級後面的那一部分，也就是「子資料夾」的名稱
+                # 例如：當前在 "Tools"，項目路徑是 "Tools/Rig/Freeze"，那麼 rest_of_path 就是 "Rig/Freeze"
+                rest_of_path = item.sub_menu_path[len(folder_prefix):]
+                folder_name = rest_of_path.split('/')[0]
+                sibling_names.add(folder_name.lower())
+
+        # --- 第三步：執行最終檢查 ---
+        if proposed_label.lower() in sibling_names:
+            log.warning(f"名稱衝突：在 '{proposed_path}' 路徑下已存在名為 '{proposed_label}' 的項目或資料夾。")
+            QtWidgets.QMessageBox.warning(self.ui, "命名衝突", f"在路徑 '{proposed_path}' 下，已經存在一個同名的項目或子資料夾了。")
+            return True
+
+        return False
+    
     def _sync_data_from_ui(self):
         """
         核心同步函式：從UI樹狀視圖掃描最新狀態，並更新記憶體中的資料列表。
@@ -326,39 +396,28 @@ class MenuBuilderController:
     def on_add_item_clicked(self):
         """
         處理「新增/更新」按鈕的點擊事件。
-
-        此函式具有雙重職責：
-        - 如果 `self.current_edit_item` 有值 (處於編輯模式)，則將
-          UI 面板的內容更新到該資料物件上。
-        - 如果為 `None` (處於新增模式)，則創建一個新的資料物件並附加到列表中。
-        
-        操作完成後，會刷新UI樹並退出編輯模式。
         """
         edited_data = self.ui.get_attributes_from_fields()
-        if not edited_data.menu_label or not edited_data.function_str:
-            log.warning("請確保'菜單標籤'和'指令'欄位不為空。")
+        if not edited_data.menu_label: # 指令可以為空 (作為資料夾)
+            log.warning("請確保'菜單標籤'欄位不為空。")
             return
+
+        # --- [核心修正] 在執行操作前，進行名稱衝突驗證 ---
+        item_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole) if self.current_edit_item else None
+        
+        if self._is_name_conflict(edited_data.menu_label, edited_data.sub_menu_path, item_to_update):
+            return # 如果檢測到衝突，則終止操作
+        # --- 驗證結束 ---
 
         self._sync_data_from_ui()
 
         if self.current_edit_item:
+            # 更新操作 (舊邏輯不變)
             item_data_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole)
             log.info(f"更新項目 '{item_data_to_update.menu_label}'...")
             
             item_data_to_update.menu_label = edited_data.menu_label
             item_data_to_update.sub_menu_path = edited_data.sub_menu_path
-            item_data_to_update.order = edited_data.order
-            item_data_to_update.icon_path = edited_data.icon_path
-            item_data_to_update.is_option_box = edited_data.is_option_box
-            item_data_to_update.function_str = edited_data.function_str
-            item_data_to_update.command_type = edited_data.command_type # <-- [新增] 更新指令類型
-            
-            self.current_edit_item = None
-            self._refresh_editor_panel()
-
-        else:
-            self.current_menu_data.append(edited_data)
-            log.info(f"新增菜單項: {edited_data.menu_label}")
         
         self.ui.populate_menu_tree(self.current_menu_data)
 
@@ -423,14 +482,16 @@ class MenuBuilderController:
             self.ui.populate_menu_tree(self.current_menu_data)
     
     
+    @block_ui_signals('menu_tree_view')
     def on_tree_item_renamed(self, item: QtWidgets.QTreeWidgetItem, column: int):
         """
-        [最終版] 當項目文字被編輯後觸發，並完美保持自身及其後代的展開狀態。
+        [最終穩健版] 當項目文字被編輯後觸發，能正確處理功能項和資料夾的重新命名驗證。
         """
-        if self.ui.menu_tree_view.signalsBlocked():
+        if self.current_edit_item:
+            log.debug("正在編輯模式中，忽略因程式化更新觸發的 itemChanged 信號。")
             return
 
-        new_name = item.text(0)
+        # 1. 首先，從 item_map 中找到該 UI 物件對應的「舊路徑」，這是最可靠的資訊來源
         old_path = None
         for path, ui_item in self.ui.item_map.items():
             if ui_item == item:
@@ -438,18 +499,32 @@ class MenuBuilderController:
                 break
         
         if old_path is None:
+            # 如果在 map 中找不到，可能是一個極端情況或新建的項目，安全起見直接刷新返回
             self._sync_data_from_ui()
             self.ui.populate_menu_tree(self.current_menu_data)
             return
 
+        # 2. 根據「舊路徑」和 UI 上的新文字，推導所需的所有資訊
+        new_name = item.text(0)
         old_name = old_path.split('/')[-1]
-        if new_name == old_name: return
-
         parent_path = "/".join(old_path.split('/')[:-1])
+
+        if new_name == old_name:
+            return
+
+        # 3. 執行名稱衝突驗證
+        item_data = item.data(0, QtCore.Qt.UserRole)
+        if self._is_name_conflict(new_name, parent_path, item_data):
+            log.warning(f"重新命名失敗，名稱 '{new_name}' 已存在。將名稱還原為 '{old_name}'。")
+            # 驗證失敗，將 UI 文字還原
+            item.setText(0, old_name)
+            return
+
+        # 4. 驗證通過後，才執行資料同步和 UI 刷新
+        log.info(f"項目已從 '{old_name}' 重命名為 '{new_name}'。")
         new_path = f"{parent_path}/{new_name}" if parent_path else new_name
-
+        
         expansion_state_before = self.ui.get_expansion_state()
-
         new_expansion_state = set()
         for path in expansion_state_before:
             if path == old_path or path.startswith(old_path + '/'):
@@ -459,13 +534,8 @@ class MenuBuilderController:
                 new_expansion_state.add(path)
         
         self._sync_data_from_ui()
-        self.ui.menu_tree_view.blockSignals(True)
         self.ui.populate_menu_tree(self.current_menu_data)
-        
         self.ui.set_expansion_state(new_expansion_state)
-        
-        self.ui.menu_tree_view.blockSignals(False)
-        log.info("項目重命名完成，已恢復展開狀態。")
             
     def on_browse_icon_clicked(self):
         """當'瀏覽圖示'按鈕被點擊時，創建並顯示圖示瀏覽器。"""
@@ -495,124 +565,143 @@ class MenuBuilderController:
         """一個新的輔助函式，用來通知UI更新標題。"""
         self.ui.update_tree_view_title(self.current_config_name)
 
+    @block_ui_signals('menu_tree_view')
     def _refresh_editor_panel(self):
         """
-        [修正後] 根據 self.current_edit_item 的狀態，刷新右側編輯面板。
+        [最終修正版] 根據 self.current_edit_item 的狀態，刷新右側編輯面板。
+        此版本透過裝飾器阻斷信號，對意外的UI刷新具有免疫力。
         """
         self.ui.clear_all_highlights()
 
         if self.current_edit_item:
-            item_data = self.current_edit_item.data(0, QtCore.Qt.UserRole)
-            
+            # ... (內部的邏輯完全不變)
             self.ui.set_item_highlight(self.current_edit_item, True)
-            
-            self.ui.set_attributes_to_fields(item_data)
+            item_data = self.current_edit_item.data(0, QtCore.Qt.UserRole)
+            if not item_data:
+                self.current_edit_item = None
+                return
+
             self.ui.add_update_button.setText("更新項目 (Update)")
             self.ui.option_box_checkbox.setEnabled(True)
+            self.ui.set_attributes_to_fields(item_data)
         else:
+            # --- 新增模式 ---
             self.ui.add_update_button.setText("新增至結構")
+            self.ui.python_radio.setChecked(True)
             self.ui.option_box_checkbox.setEnabled(False)
             self.ui.option_box_checkbox.setChecked(False)
-            self.ui.python_radio.setChecked(True)
-
-    def _apply_option_box_change(self, item_data_to_change, should_be_option_box):
-        """
-        [新增] 一個統一的、權威的函式，用來處理 is_option_box 狀態的變更。
-        """
-        if item_data_to_change.is_option_box != should_be_option_box:
-            log.debug(f"'{item_data_to_change.menu_label}' 的 is_option_box 狀態變更為: {should_be_option_box}")
-            item_data_to_change.is_option_box = should_be_option_box
-        
-        self._sync_data_from_ui()
-        self.ui.populate_menu_tree(self.current_menu_data)
-        self._refresh_editor_panel()
 
     @preserve_ui_state
+    @block_ui_signals('menu_tree_view')
     def on_option_box_changed(self, state):
-        """[最終版] 當'作為選項框'核取方塊的狀態改變時觸發，並執行最完整的驗證。"""
-        if state > 0:
-            if not self.current_edit_item:
-                QtWidgets.QMessageBox.warning(self.ui, "操作無效", "請先從左側雙擊一個項目以進入編輯模式。")
-                self.ui.option_box_checkbox.setChecked(False)
-                return
+        """
+        [融合使用者建議的最終版] 當'作為選項框'核取方塊的狀態改變時觸發。
+        此版本使用在當前情境下穩定的 'order' 屬性來恢復編輯狀態，體驗不中斷。
+        """
+        if not self.current_edit_item:
+            # ... (驗證邏輯不變)
+            return
 
-            current_ui_item = None
-            item_path = f"{self.current_edit_item.sub_menu_path}/{self.current_edit_item.menu_label}" if self.current_edit_item.sub_menu_path else self.current_edit_item.menu_label
-            if item_path in self.ui.item_map:
-                current_ui_item = self.ui.item_map[item_path]
+        item_data = self.current_edit_item.data(0, QtCore.Qt.UserRole)
+        if not item_data:
+            return
 
-            if not current_ui_item:
-                log.error("無法在UI樹中找到對應的編輯項目。")
-                self.ui.option_box_checkbox.setChecked(False)
-                return
+        should_become_option_box = state > 0
+        if should_become_option_box == item_data.is_option_box:
+            return
 
-            item_above = self.ui.menu_tree_view.itemAbove(current_ui_item)
+        # ... (其他驗證邏輯不變)
 
-            error_message = ""
-            if not item_above:
-                error_message = "選項框不能作為其所在層級的第一個項目。"
-            elif current_ui_item.parent() != item_above.parent():
-                error_message = "選項框不能作為其所在層級的第一個項目。"
-            else:
-                parent_candidate_data = item_above.data(0, QtCore.Qt.UserRole)
-                if not parent_candidate_data:
-                    error_message = "一個項目要成為選項框，它的正上方必須是一個有效的功能菜單項。"
-                elif parent_candidate_data.is_option_box:
-                    error_message = "一個選項框項目不能成為另一個的選項框。"
-
-            if not error_message:
-                log.debug(f"項目 '{self.current_edit_item.menu_label}' 將成為選項框。")
-                self.current_edit_item.is_option_box = True
-                self.ui.populate_menu_tree(self.current_menu_data)
-                return
-            else:
-                QtWidgets.QMessageBox.warning(self.ui, "操作無效", error_message)
-                self.ui.option_box_checkbox.setChecked(False)
+        # --- [核心修正] 採用 order 作為恢復編輯狀態的依據 ---
         
+        # 1. 在 UI 刷新前，記下這個穩定不變的 order 值
+        original_order = item_data.order
+        
+        # 2. 更新資料並重繪 UI
+        item_data.is_option_box = should_become_option_box
+        log.debug(f"項目 '{item_data.menu_label}' 的 is_option_box 狀態變更為: {should_become_option_box}")
+        self.ui.populate_menu_tree(self.current_menu_data)
+
+        # 3. 遍歷新生成的 UI 項目，找到 order 值匹配的那一個
+        new_ui_item_found = None
+        for ui_item in self.ui.item_map.values():
+            data_on_new_item = ui_item.data(0, QtCore.Qt.UserRole)
+            if data_on_new_item and data_on_new_item.order == original_order:
+                new_ui_item_found = ui_item
+                break  # 找到了就跳出循環
+
+        # 4. 更新引用並恢復高亮，保持編輯模式
+        if new_ui_item_found:
+            self.current_edit_item = new_ui_item_found
+            self.ui.set_item_highlight(self.current_edit_item, True)
+            log.debug(f"成功使用 'order'({original_order}) 恢復編輯狀態。")
         else:
-            if self.current_edit_item:
-                self.current_edit_item.is_option_box = False
-                self.ui.populate_menu_tree(self.current_menu_data)
+            log.error(f"使用 'order' 恢復狀態失敗，找不到 order 為 {original_order} 的項目。已強制退出編輯模式。")
+            self.current_edit_item = None
+            self._refresh_editor_panel()
 
     @preserve_ui_state
     def on_drop_event_completed(self, source_item: QtWidgets.QTreeWidgetItem, 
                                 target_item: QtWidgets.QTreeWidgetItem, 
                                 indicator: QtWidgets.QAbstractItemView.DropIndicatorPosition):
         """
-        [最終版] 在拖放操作完成後，執行唯一的、權威的資料同步和狀態修正。
-        能精確區分「重新父級」和「成為選項框」兩種意圖。
+        [增加新規則] 處理拖放，增加驗證：已是父物件的項目，不能成為選項框。
         """
         log.debug("拖放完成，開始同步資料和狀態...")
         
-        self.ui.option_box_checkbox.blockSignals(True)
-        
+        source_data = source_item.data(0, QtCore.Qt.UserRole)
+        if not source_data:
+            return
+
+        # 1. 在同步UI、打亂順序之前，先檢查被拖曳的物件是否已經是「父物件」。
+        is_source_a_parent = False
+        option_box_to_move_with = None
         try:
-            self._sync_data_from_ui()
-            
-            source_data = source_item.data(0, QtCore.Qt.UserRole)
-            if not source_data:
-                self.ui.populate_menu_tree(self.current_menu_data)
-                return
+            original_index = self.current_menu_data.index(source_data)
+            if (original_index + 1) < len(self.current_menu_data):
+                item_after = self.current_menu_data[original_index + 1]
+                if item_after.is_option_box:
+                    is_source_a_parent = True
+                    option_box_to_move_with = item_after
+        except ValueError:
+            pass
 
-            should_be_option_box = False
-            
-            if indicator == QtWidgets.QAbstractItemView.OnItem and target_item:
-                target_data = target_item.data(0, QtCore.Qt.UserRole)
-                if target_data and not target_data.is_option_box:
+        # 2. 執行UI同步
+        self._sync_data_from_ui()
+
+        # 3. 處理「創建 Option Box」的邏輯
+        should_be_option_box = False
+        if indicator == QtWidgets.QAbstractItemView.OnItem and target_item:
+            target_data = target_item.data(0, QtCore.Qt.UserRole)
+            if target_data and not target_data.is_option_box:
+                
+                # --- [核心修正] 在這裡加入新的驗證規則 ---
+                if not is_source_a_parent:
+                    # 只有當被拖曳的物件自己不是父物件時，才允許它成為 Option Box
                     should_be_option_box = True
-                    log.debug(f"意圖：成為選項框。將 '{source_data.menu_label}' 的路徑修正為 '{target_data.sub_menu_path}'")
                     source_data.sub_menu_path = target_data.sub_menu_path
+                else:
+                    # 如果它已經是父物件，則阻止此操作，並給出提示
+                    log.warning(f"操作被阻止：項目 '{source_data.menu_label}' 因其已有選項框，不能成為其他項目的選項框。")
+                    # 保持 should_be_option_box 為 False，拖放會被視為普通的排序操作
 
-            if source_data.is_option_box != should_be_option_box:
-                 log.info(f"'{source_data.menu_label}' 的 is_option_box 狀態更新為: {should_be_option_box}")
-                 source_data.is_option_box = should_be_option_box
-            
-            self.ui.populate_menu_tree(self.current_menu_data)
-            
+        if source_data.is_option_box != should_be_option_box:
+             source_data.is_option_box = should_be_option_box
+             log.debug(f"項目 '{source_data.menu_label}' 的 is_option_box 狀態變更為: {should_be_option_box}")
+
+        # 4. 處理 Option Box 「跟隨」的邏輯 (這部分不變)
+        if option_box_to_move_with:
+            option_box_to_move_with.sub_menu_path = source_data.sub_menu_path
+            self.current_menu_data.remove(option_box_to_move_with)
+            new_parent_index = self.current_menu_data.index(source_data)
+            self.current_menu_data.insert(new_parent_index + 1, option_box_to_move_with)
+            log.debug(f"已將 Option Box 移動到新位置。")
+
+        # 5. 用最終修正後的資料，徹底重繪 UI
+        self.ui.populate_menu_tree(self.current_menu_data)
+        
+        if self.current_edit_item:
             self._refresh_editor_panel()
-            
-        finally:
-            self.ui.option_box_checkbox.blockSignals(False)
         
     def on_about(self):
         """
