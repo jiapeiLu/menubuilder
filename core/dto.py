@@ -27,6 +27,7 @@ class MenuItemData:
     icon_path: str = ""
     is_divider: bool = False
     is_option_box: bool = False
+    command_type: str = "python" 
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'MenuItemData':

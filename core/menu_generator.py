@@ -1,3 +1,5 @@
+# menu_generator.py
+
 """
 Menubuilder - Maya Menu Generator Module
 
@@ -11,7 +13,7 @@ from maya import cmds, mel
 from typing import List
 from .dto import MenuItemData
 from .logger import log
-import re # 導入正則表達式模組
+import re
 
 OPTIONVAR_KEY = "menubuilder_created_menus"
 
@@ -63,30 +65,17 @@ class MenuGenerator:
             str: 一個準備好被 Maya menuItem 執行的單行指令字串。
         """
         original_command = item.function_str.strip()
-        '''disable dockable
-        if item.is_dockable:
-            log.debug(f"為 '{item.menu_label}' 解析 Dockable 啟動資料。")
-            ui_name = f"{item.menu_label.replace(' ','_')}_{item.order}_wsControl"
-            ui_label = item.menu_label
-
-            # 解析模組名和函式名 (現在是固定的格式)
-            callable_line = original_command.strip().split('\n')[-1].strip()
-            parts = callable_line.split('.')
-            module_name = parts[0]
-            func_name = parts[1].replace('()', '')
-
-            # 生成簡單、乾淨的函式呼叫指令
-            wrapped_command = (
-                f"from menubuilder.core.ui_dockable import launch_dockable_from_data; "
-                f"launch_dockable_from_data(ui_name='{ui_name}', ui_label='{ui_label}', module_name='{module_name}', func_name='{func_name}')"
-            )
-            return wrapped_command'''
-
-        # --- 處理 MEL 或普通 Python 指令 (邏輯不變) ---
-        if original_command.lower().startswith("mel:"):
-            mel_command = original_command.replace("mel:", "", 1).strip()
-            return f'mel.eval("{mel_command}")'
-        else:
+        
+        # --- [核心修改] 根據 command_type 決定如何生成指令 ---
+        if item.command_type == "mel":
+            log.debug(f"為 '{item.menu_label}' 生成 MEL 指令。")
+            # 為了能安全地將 MEL 指令嵌入 Python 字串，需要對其中的雙引號進行轉義
+            safe_mel_command = original_command.replace('"', '\\"')
+            # 返回一個 Python 指令，該指令會呼叫 mel.eval() 來執行 MEL
+            return f'from maya import mel; mel.eval("{safe_mel_command}")'
+        else: # 預設為 "python"
+            log.debug(f"為 '{item.menu_label}' 生成 Python 指令。")
+            # Python 指令可以直接返回，Maya 會處理多行指令
             return original_command
         
     def build_from_config(self, data: List[MenuItemData]):
@@ -116,10 +105,9 @@ class MenuGenerator:
         parent_menu_cache = {}
 
         for item in sorted_data:
-            # [核心修改] 使用新的 is_divider 屬性
             if item.is_divider:
                 cmds.menuItem(divider=True, parent=parent)
-                continue # 處理完畢，跳到下一個項目
+                continue
 
             parent = gMainWindow
             
@@ -147,11 +135,8 @@ class MenuGenerator:
                 continue
 
             command_str = self._generate_command_string(item)
-            # --- [核心修改] ---
-            # 檢查是否為 Option Box
-            is_opt_box = item.is_option_box
             
-            # 為 Option Box 自動指定 Maya 內建圖示
+            is_opt_box = item.is_option_box
             icon_path = ":/options.png" if is_opt_box else (item.icon_path if item.icon_path else "")
             
             cmds.menuItem(
@@ -159,7 +144,8 @@ class MenuGenerator:
                 parent=parent,
                 command=command_str,
                 image=icon_path,
-                optionBox=is_opt_box  # <-- 關鍵旗標
+                optionBox=is_opt_box,
+                sourceType="python"  # <-- [核心修正] sourceType 必須永遠是 python
             )
         
         log.info(f"成功建立 {len(sorted_data)} 個菜單項。")

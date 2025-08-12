@@ -1,82 +1,79 @@
 [
     {
-        "sub_menu_path": "Tools/Animation",
+        "sub_menu_path": "Tools",
         "order": 10,
-        "function_str": "cmds.makeIdentity(apply=True, t=1, r=1, s=1, n=0)",
-        "menu_label": "Freeze Transformations",
+        "function_str": "print('Hello')",
+        "menu_label": "(Py) Print Hello",
         "module_path": "",
         "icon_path": "",
         "is_divider": false,
-        "is_option_box": false
+        "is_option_box": false,
+        "command_type": "python"
     },
     {
-        "sub_menu_path": "Tools/Animation",
+        "sub_menu_path": "Tools",
         "order": 20,
-        "function_str": "cmds.joint()",
-        "menu_label": "Set Play Back",
+        "function_str": "print `getenv(\"MAYA_APP_DIR\") `\n",
+        "menu_label": "(mel)print workspace",
         "module_path": "",
         "icon_path": "",
         "is_divider": false,
-        "is_option_box": false
+        "is_option_box": false,
+        "command_type": "mel"
     },
     {
-        "sub_menu_path": "Tools/Modeling",
+        "sub_menu_path": "Tools",
         "order": 30,
-        "function_str": "cmds.polySphere()",
-        "menu_label": "Create Sphere",
-        "module_path": "",
-        "icon_path": "",
-        "is_divider": false,
-        "is_option_box": false
-    },
-    {
-        "sub_menu_path": "Tools/Modeling",
-        "order": 40,
-        "function_str": "dockable:import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\nvtxMatch.main()",
-        "menu_label": "Main",
-        "module_path": "",
-        "icon_path": "",
-        "is_divider": false,
-        "is_option_box": false
-    },
-    {
-        "sub_menu_path": "Tools/Modeling",
-        "order": 50,
-        "function_str": "import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\nvtxMatch.layout()",
-        "menu_label": "Layout",
-        "module_path": "",
-        "icon_path": "",
-        "is_divider": false,
-        "is_option_box": false
-    },
-    {
-        "sub_menu_path": "Tools/Modeling",
-        "order": 60,
         "function_str": "",
         "menu_label": "---",
         "module_path": "",
         "icon_path": "",
         "is_divider": true,
-        "is_option_box": false
+        "is_option_box": false,
+        "command_type": "python"
+    },
+    {
+        "sub_menu_path": "Tools/Rig",
+        "order": 40,
+        "function_str": "cmds.makeIdentity(apply=True, t=1, r=1, s=1, n=0)",
+        "menu_label": "Freeze Transformations",
+        "module_path": "",
+        "icon_path": "",
+        "is_divider": false,
+        "is_option_box": false,
+        "command_type": "python"
+    },
+    {
+        "sub_menu_path": "Tools/Rig",
+        "order": 50,
+        "function_str": "FreezeTransformationsOptions",
+        "menu_label": "FreezeTransformationsOptions",
+        "module_path": "",
+        "icon_path": "",
+        "is_divider": false,
+        "is_option_box": true,
+        "command_type": "mel"
+    },
+    {
+        "sub_menu_path": "Tools/Rig",
+        "order": 60,
+        "function_str": "cmds.joint( n = 'root')",
+        "menu_label": "Create root",
+        "module_path": "",
+        "icon_path": "",
+        "is_divider": false,
+        "is_option_box": false,
+        "command_type": "python"
     },
     {
         "sub_menu_path": "Tools/Modeling",
         "order": 70,
-        "function_str": "import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\n\ncmds.workspaceControl(\n            'tset', label='test_label', uiScript=vtxMatch.for_dockable_layout(),\n            retain=False, floating=True, initialWidth=350, initialHeight=200\n        )",
-        "menu_label": "Vtx Match",
+        "function_str": "cmds.polySphere()",
+        "menu_label": "Create Sphere",
         "module_path": "",
         "icon_path": "",
         "is_divider": false,
-        "is_option_box": false
-    },
-    {
-        "sub_menu_path": "Tools/Modeling",
-        "order": 80,
-        "function_str": "import vtxMatch_pyside\nfrom importlib import reload\nreload(vtxMatch_pyside)\nvtxMatch_pyside.for_dockable_layout()",
-        "menu_label": "Vtx Match Pyside",
-        "module_path": "",
-        "icon_path": "",
-        "is_divider": false,
-        "is_option_box": false
+        "is_option_box": false,
+        "command_type": "python"
     }
 ]

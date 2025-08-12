@@ -24,7 +24,7 @@
 
 ```
 menubuilder/
-├── __init__.py           # 主入口點 (包含 reload_all, show)
+├── __init__.py           # 主入口點 (包含 reload, show)
 ├── setup_maya_menu.py    # 團隊部署用的啟動腳本
 ├── README.md             # 本說明文件
 ├── settings.json         # 工具的全域設定
@@ -37,8 +37,6 @@ menubuilder/
 │   ├── script_parser.py  # 腳本解析器
 │   ├── dto.py            # 資料傳輸物件 (MenuItemData)
 │   └── logger.py         # 日誌系統
-│
-├── icons/                  # UI 介面使用的圖示
 │
 └── menuitems/              # 存放所有菜單設定檔 (.json)
     └── personal_menubar.json # 預設的個人菜單設定

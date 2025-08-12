@@ -1,3 +1,5 @@
+# ui.py
+
 """
 Menubuilder - User Interface Module (View)
 
@@ -77,35 +79,24 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         main_widget = QtWidgets.QWidget()
         self.setCentralWidget(main_widget)
         
-        # [核心修改] 
-        # 我們不再直接在 main_widget 上使用 QHBoxLayout
-        # 而是先創建 QSplitter，然後讓一個 QVBoxLayout 來容納這個 QSplitter
-        # 這是為了確保 QSplitter 能填滿整個視窗
         top_level_layout = QtWidgets.QVBoxLayout(main_widget)
         splitter = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
         top_level_layout.addWidget(splitter)
 
-        # 1. 創建一個容器 QWidget
         left_container_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(left_container_widget)
 
         self.left_label = QtWidgets.QLabel("現有菜單結構 (Menu Configuration)")
         self.menu_tree_view = DraggableTreeWidget()
         self.menu_tree_view.setHeaderLabels(["菜單結構 (Menu Structure)"])
-        #self.menu_tree_view.setColumnWidth(0, 200)
-
-        # 啟用自訂右鍵選單
         self.menu_tree_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         left_layout.addWidget(self.left_label)
         left_layout.addWidget(self.menu_tree_view)
 
-        # --- 右側: 編輯器 ---
-        # 1. 創建一個容器 QWidget
         right_container_widget = QtWidgets.QWidget()
         right_layout = QtWidgets.QVBoxLayout(right_container_widget)
 
-        # -- Tab Widget for input method --
         self.input_tabs = QtWidgets.QTabWidget()
         file_parse_widget = QtWidgets.QWidget()
         manual_input_widget = QtWidgets.QWidget()
@@ -113,43 +104,58 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.input_tabs.addTab(file_parse_widget, "從檔案解析")
         self.input_tabs.addTab(manual_input_widget, "手動輸入指令")
 
-        # -- Tab 1: Parse from File Layout --
         file_parse_layout = QtWidgets.QVBoxLayout(file_parse_widget)
-        # ... (Add browse button and function list here)
         self.browse_button = QtWidgets.QPushButton("瀏覽腳本檔案...")
-        # [新增] 用於顯示當前腳本路徑的資訊列
         self.current_script_path_label = QtWidgets.QLineEdit()
-        self.current_script_path_label.setReadOnly(True) # 設為唯讀，僅供顯示
-        self.current_script_path_label.setStyleSheet("background-color: #2E2E2E; border: none;") # 美化一下外觀
+        self.current_script_path_label.setReadOnly(True)
+        self.current_script_path_label.setStyleSheet("background-color: #2E2E2E; border: none;")
 
         self.function_list = QtWidgets.QListWidget()
         file_parse_layout.addWidget(self.browse_button)
-        file_parse_layout.addWidget(self.current_script_path_label) # [新增] 將資訊列加入佈局
+        file_parse_layout.addWidget(self.current_script_path_label)
         file_parse_layout.addWidget(self.function_list)
 
         # -- Tab 2: Manual Input Layout --
         manual_input_layout = QtWidgets.QVBoxLayout(manual_input_widget)
-        self.manual_cmd_input = QtWidgets.QTextEdit()
-        self.manual_cmd_input.setPlaceholderText("請在此輸入完整的Python或MEL指令...")
-        manual_input_layout.addWidget(self.manual_cmd_input)
+        
+        # --- [新增] 指令類型選擇 ---
+        # -----------------------------------------------------------------
+        self.python_radio = QtWidgets.QRadioButton("Python")
+        self.mel_radio = QtWidgets.QRadioButton("MEL")
+        self.python_radio.setChecked(True) # 預設選中 Python
+        
+        # 使用 QButtonGroup 確保互斥
+        self.command_type_group = QtWidgets.QButtonGroup()
+        self.command_type_group.addButton(self.python_radio)
+        self.command_type_group.addButton(self.mel_radio)
 
-        # -- Attribute Editor Layout (使用 QFormLayout 更整齊) --
+        command_type_layout = QtWidgets.QHBoxLayout()
+        command_type_layout.addWidget(QtWidgets.QLabel("指令類型 (Type):"))
+        command_type_layout.addWidget(self.python_radio)
+        command_type_layout.addWidget(self.mel_radio)
+        command_type_layout.addStretch()
+        # -----------------------------------------------------------------
+
+        self.manual_cmd_input = QtWidgets.QTextEdit()
+        self.manual_cmd_input.setPlaceholderText("請在此輸入指令，並選取對應Python或mel語言...")
+        self.test_run_button = QtWidgets.QPushButton("測試執行") # <-- [新增]
+        self.test_run_button.setStyleSheet("background-color: #446688;")
+
+        manual_input_layout.addLayout(command_type_layout) # <-- [新增] 將類型選擇佈局加入
+        manual_input_layout.addWidget(self.manual_cmd_input)
+        manual_input_layout.addWidget(self.test_run_button) # <-- [新增]
+
         self.attribute_box = QtWidgets.QGroupBox("屬性編輯器")
         form_layout = QtWidgets.QFormLayout()
 
         self.label_input = QtWidgets.QLineEdit()
         self.path_input = QtWidgets.QLineEdit()
         self.path_input.setPlaceholderText("例如: Tools/Modeling")
-        #self.order_input = QtWidgets.QSpinBox()
-        #self.order_input.setRange(0, 999)
-        # [核心修改] 替換舊的 icon_layout
-        # -----------------------------------------------------------------
-        # -- Icon Group --
+        
         icon_path_layout = QtWidgets.QHBoxLayout()
         self.icon_input = QtWidgets.QLineEdit()
         self.icon_input.setPlaceholderText("輸入路徑或點擊右側按鈕瀏覽...")
         
-        # 新增兩個按鈕
         self.icon_browse_btn = QtWidgets.QPushButton("自訂...")
         self.icon_browse_btn.setToolTip("瀏覽本機的圖示檔案 (e.g., C:/icon.png)")
         self.icon_buildin_btn = QtWidgets.QPushButton("內建...")
@@ -159,67 +165,50 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         icon_path_layout.addWidget(self.icon_browse_btn)
         icon_path_layout.addWidget(self.icon_buildin_btn)
         
-        # 預覽標籤
         self.icon_preview = QtWidgets.QLabel()
         self.icon_preview.setFixedSize(32, 32)
         self.icon_preview.setStyleSheet("border: 1px solid #555; background-color: #333; border-radius: 4px;")
         self.icon_preview.setAlignment(QtCore.Qt.AlignCenter)
         self.icon_preview.setText("無")
         
-        # 預覽更新 訊息
         self.icon_input.textChanged.connect(self.update_icon_preview)
-        # -----------------------------------------------------------------
         
         self.option_box_checkbox = QtWidgets.QCheckBox("作為選項框 (IsOptionBox)")
         self.option_box_checkbox.setEnabled(False)
 
         form_layout.addRow("菜單標籤 (Label):", self.label_input)
         form_layout.addRow("菜單路徑 (Path):", self.path_input)
-        #form_layout.addRow("排序順位 (Order):", self.order_input)
-        # 將UI元件加入 Form Layout
         form_layout.addRow("圖示路徑 (Icon):", icon_path_layout)
         form_layout.addRow("預覽 (Preview):", self.icon_preview)
-        
         form_layout.addRow(self.option_box_checkbox)
 
         self.attribute_box.setLayout(form_layout)
        
-
-        # -- 操作按鈕 --
         self.add_update_button = QtWidgets.QPushButton("新增至結構")
-        #self.delete_button = QtWidgets.QPushButton("從結構中刪除")
         self.save_button = QtWidgets.QPushButton("儲存設定檔")
         self.build_menus_button = QtWidgets.QPushButton("✨ 在Maya中產生/刷新菜單 (Build Menus)")
 
-        # -- 組合右側所有元件 --
         right_layout.addWidget(self.input_tabs)
         right_layout.addWidget(self.attribute_box)
         right_layout.addWidget(self.add_update_button)
-        #right_layout.addWidget(self.delete_button)
-        right_layout.addStretch() # 將按鈕往上推
+        right_layout.addStretch()
         right_layout.addWidget(self.save_button)
         right_layout.addWidget(self.build_menus_button)
 
-
-        # --- [核心修改] 將兩個容器加入 Splitter ---
         splitter.addWidget(left_container_widget)
         splitter.addWidget(right_container_widget)
         
-        # [建議] 設定初始的分割比例
         splitter.setSizes([350, 450]) 
 
-        # [新增] 創建頂部菜單欄
-        # =================================================
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("檔案(File)")
 
-        # 創建菜單中的動作 (Action)
         self.open_action = file_menu.addAction("開啟設定檔 (Open)...")
         self.merge_action = file_menu.addAction("合併設定檔 (Merge)...")
         self.save_action = file_menu.addAction("存檔 (Save )...")
         self.save_as_action = file_menu.addAction("另存新檔 (Save As)...")
         
-        file_menu.addSeparator() # 加入分隔線
+        file_menu.addSeparator()
         
         self.exit_action = file_menu.addAction("離開 (Exit)")
 
@@ -227,8 +216,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         
         self.about_action = help_menu.addAction("關於 (About)")
         self.github_action = help_menu.addAction("在 GitHub 上查看...")
-        # =================================================
-        
         
     def populate_menu_tree(self, items: List[MenuItemData]):
         """
@@ -242,13 +229,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         Args:
             items (List[MenuItemData]): 用於渲染UI樹的菜單項資料列表。
         """
-        # 在重建前，阻擋信號，防止觸發不必要的 itemChanged 事件
         self.menu_tree_view.blockSignals(True)
         self.menu_tree_view.clear()
         self.item_map.clear()
         
         for item_data in items:
-            # 對每一個項目，都從根節點開始，確保其父級路徑存在
             parent_ui_item = self.menu_tree_view.invisibleRootItem()
             
             if item_data.sub_menu_path:
@@ -260,44 +245,35 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                     if full_path_key in self.item_map:
                         parent_ui_item = self.item_map[full_path_key]
                     else:
-                        # 創建新的父級(文件夾)節點
                         new_parent = QtWidgets.QTreeWidgetItem(parent_ui_item, [part])
                         new_parent.setFlags(new_parent.flags() | QtCore.Qt.ItemIsEditable)
                         self.item_map[full_path_key] = new_parent
                         parent_ui_item = new_parent
 
-            # --- [核心修改] 根據 is_option_box 決定顯示樣式 ---
             display_label = item_data.menu_label
             
-            # 優先檢查是否為分隔線
             if item_data.is_divider:
                 display_label = "──────────"
             elif item_data.is_option_box:
                 display_label = f"(□) {item_data.menu_label}"
 
-            # 創建並附加真正的功能節點
             menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [display_label])
             menu_qitem.setData(0, QtCore.Qt.UserRole, item_data)
 
-            # 應用特殊樣式
             if item_data.is_divider:
-                # 讓分隔符在UI中不可編輯、不可拖動、不可選擇，顏色變暗
                 flags = QtCore.Qt.ItemIsEnabled
                 menu_qitem.setFlags(flags)
                 menu_qitem.setForeground(0, QtGui.QColor("#666666"))
             elif item_data.is_option_box:
                 menu_qitem.setToolTip(0, f"此項目是一個選項框(Option Box)，\n隸屬於它上方的菜單項。")
-                # 可以考慮改變顏色以示區分
                 font = menu_qitem.font(0)
                 font.setItalic(True)
                 menu_qitem.setFont(0, font)
                 menu_qitem.setForeground(0, QtGui.QColor("#A0A0A0"))
             
-            # 將功能節點本身也加入 item_map，以便查找
             final_path = f"{item_data.sub_menu_path}/{item_data.menu_label}" if item_data.sub_menu_path else item_data.menu_label
             self.item_map[final_path] = menu_qitem
 
-        # 重建完成後，解除信號阻擋
         self.menu_tree_view.blockSignals(False)
     
     def get_attributes_from_fields(self) -> MenuItemData:
@@ -308,27 +284,19 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         Returns:
             MenuItemData: 一個包含了右側面板所有當前設定的新資料物件。
         """
-        # 判斷指令來源：是從函式列表選擇，還是手動輸入
-        # Tab 0: 從檔案解析, Tab 1: 手動輸入
-        function_string = ""
-        if self.input_tabs.currentIndex() == 0:
-            selected_func_item = self.function_list.currentItem()
-            if selected_func_item:
-                # 這裡可以設計得更完善，比如把完整的導入和呼叫語法也組合進去
-                function_string = selected_func_item.text()
-        else: # 手動輸入
-            function_string = self.manual_cmd_input.toPlainText()
+        function_string = self.manual_cmd_input.toPlainText()
+        
+        # --- [修改] 獲取指令類型 ---
+        command_type = "mel" if self.mel_radio.isChecked() else "python"
 
         # 創建 DTO 物件並填充資料
         item_data = MenuItemData(
             menu_label=self.label_input.text(),
             sub_menu_path=self.path_input.text(),
-            #order=self.order_input.value(),
             icon_path=self.icon_input.text(),
-            #is_dockable=self.dockable_checkbox.isChecked(),
             is_option_box=self.option_box_checkbox.isChecked(),
-            function_str=function_string
-            # module_path 可以考慮在選擇檔案時就存起來
+            function_str=function_string,
+            command_type=command_type # <-- [修改] 傳入指令類型
         )
         return item_data
         
@@ -339,7 +307,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         while iterator.value():
             item = iterator.value()
             if item.isExpanded():
-                # 直接使用我們已有的輔助函式來獲取路徑，更高效、更準確
                 path = self.get_path_for_item(item)
                 expanded_paths.add(path)
             iterator += 1
@@ -357,7 +324,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         """
         log.info("從UI樹狀視圖掃描並生成有序的資料列表...")
         ordered_list = []
-        # 從看不見的根節點開始，初始路徑為空字串 ""
         self._recursive_tree_walk(self.menu_tree_view.invisibleRootItem(), "", ordered_list)
         log.info(f"掃描完成，共獲取 {len(ordered_list)} 個項目。")
         return ordered_list
@@ -371,42 +337,17 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             parent_path: 父級的菜單路徑 (e.g., "Tools/Modeling")。
             ordered_list: 用於收集結果的列表。
         """
-        # childCount() 和 child(i) 會自然地按照從上到下的視覺順序遍歷
         for i in range(parent_item.childCount()):
             child_item = parent_item.child(i)
-            
-            # 從UI項目中取回我們之前用 setData 儲存的 MenuItemData 物件
             item_data = child_item.data(0, QtCore.Qt.UserRole)
-            
-            # 取得當前項目的顯示名稱 (它可能是菜單項的標籤，也可能是文件夾的名稱)
             current_item_text = child_item.text(0)
-            
-            # 組合出當前這個UI項目的完整路徑
-            # 如果父路徑為空，則當前路徑就是它自己的名字；否則進行拼接
             current_path = f"{parent_path}/{current_item_text}" if parent_path else current_item_text
             
             if item_data:
-                # [核心] 如果這個UI項目是一個真正的菜單項 (存有我們的data)
-                
-                # 1. 更新它的 sub_menu_path，以反映它在UI中被拖放後的新位置
                 item_data.sub_menu_path = parent_path
-                
-                # 2. 將更新後的資料物件加入到結果列表中
                 ordered_list.append(item_data)
 
-            # 繼續遞迴深入下一層，不論當前節點是文件夾還是菜單項，
-            # 只要它有子節點，就繼續遍歷。
             if child_item.childCount() > 0:
-                # 當遞迴進入下一層時，當前項目的路徑就變成了子項目的父路徑
-                # 注意：這裡我們傳遞的是 current_path，這是純粹由UI結構決定的路徑
-                # 這一步是為了處理那些純粹作為文件夾，自身不帶 MenuItemData 的節點
-                # 但我們的邏輯中，文件夾和菜單項的路徑更新方式是一樣的，所以可以簡化
-                # 我們需要找到代表這個文件夾的 path
-                
-                # 修正：子項目的父路徑就是當前項目的路徑
-                # 如果當前是個菜單項，其子項目的父路徑應為其自身的sub_menu_path + label
-                # 如果當前是個文件夾，其子項目的父路徑應為其自身的路徑
-                # 最簡單的方式是直接使用上面組合好的 current_path
                 self._recursive_tree_walk(child_item, current_path, ordered_list)
                 
     def set_expansion_state(self, expanded_paths: set):
@@ -426,21 +367,23 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             data (MenuItemData): 要顯示在編輯器中的資料物件。
         """
         if not data:
-            # 可以選擇清空所有欄位
             log.warning("傳入的 item_data 為空，無法填入欄位。")
             return
 
-        # 填入所有對應的欄位
         self.label_input.setText(data.menu_label)
         self.path_input.setText(data.sub_menu_path)
-        #self.order_input.setValue(data.order)
         self.icon_input.setText(data.icon_path)
-        #self.dockable_checkbox.setChecked(data.is_dockable)
         self.option_box_checkbox.setChecked(data.is_option_box)
-
-        # 將指令填入「手動輸入」框，並切換到該分頁，方便查看和編輯
+        
+        # --- [修改] 根據資料設定指令類型 ---
+        if data.command_type == "mel":
+            self.mel_radio.setChecked(True)
+        else:
+            self.python_radio.setChecked(True)
+        
+        # 即使是MEL，也切換到手動輸入頁面，因為那是指令的唯一來源
         self.input_tabs.setCurrentIndex(1)
-        self.manual_cmd_input.setText(data.function_str)    
+        self.manual_cmd_input.setText(data.function_str)
 
     def get_path_for_item(self, item: QtWidgets.QTreeWidgetItem) -> str:
         """輔助函式：獲取一個QTreeWidgetItem的完整層級路徑。"""
@@ -465,21 +408,18 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         if item:
             item_data = item.data(0, QtCore.Qt.UserRole)
 
-            # --- [核心修改] 檢查項目是否為分隔線 ---
             if item_data and item_data.is_divider:
-                # 如果是分隔線，只提供「刪除」選項
                 action_delete = menu.addAction("刪除...")
                 action_delete.triggered.connect(
                     functools.partial(self.controller.on_context_delete, item)
                 )
             else:
-                # --- 如果是普通項目或文件夾，則提供完整選單 ---
                 path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
 
                 action_rename = menu.addAction("重新命名 (Rename)")
                 action_rename.triggered.connect(lambda: self.menu_tree_view.editItem(item))
 
-                if item_data: # 這是個功能項
+                if item_data:
                     action_edit = menu.addAction("編輯 (Edit)")
                     action_edit.triggered.connect(
                         functools.partial(self.controller.on_tree_item_double_clicked, item, 0)
@@ -507,9 +447,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 action_delete.triggered.connect(
                     functools.partial(self.controller.on_context_delete, item)
                 )
-
         else:
-            # --- 如果點擊在空白處 ---
             action_add_root = menu.addAction("新增根級項目...")
             action_add_root.triggered.connect(
                 functools.partial(self.controller.on_context_add_under, "")
@@ -523,7 +461,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             self.left_label.setText(f"現有菜單結構 - {filename}.json")
         else:
             self.left_label.setText("現有菜單結構 (Menu Configuration)")
-
 
     def update_icon_preview(self, path: str):
         """
@@ -539,11 +476,9 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         icon = QtGui.QIcon(path)
         if icon.isNull():
-            # 如果路徑無效，QIcon會是null
             self.icon_preview.clear()
             self.icon_preview.setText("無效")
         else:
-            # 從QIcon創建一個QPixmap並顯示在QLabel中
             pixmap = icon.pixmap(32, 32)
             self.icon_preview.setPixmap(pixmap)
 
@@ -551,19 +486,14 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         """設定指定UI項目的高亮（粗體）狀態。"""
         if not item_to_highlight:
             return
-        # --- 設定字體為粗體 (不變) ---
         font = item_to_highlight.font(0)
         font.setBold(bold)
         item_to_highlight.setFont(0, font)
 
-        # --- [新增] 設定背景顏色 ---
         if bold:
-            # 設定一個高亮的顏色 (這是一個中性偏藍的灰色，適合暗色主題)
-            # 您可以隨意更換成您喜歡的任何顏色代碼
             highlight_color = QtGui.QColor("#34532D")
             item_to_highlight.setBackground(0, QtGui.QBrush(highlight_color))
         else:
-            # 如果是取消高亮，則恢復預設背景 (透明)
             item_to_highlight.setBackground(0, QtGui.QBrush())
 
     def clear_all_highlights(self):
@@ -571,30 +501,22 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         iterator = QtWidgets.QTreeWidgetItemIterator(self.menu_tree_view)
         while iterator.value():
             item = iterator.value()
-            
-            # 檢查並恢復字體
             font = item.font(0)
             if font.bold():
                 font.setBold(False)
                 item.setFont(0, font)
-
-            # [新增] 檢查並恢復背景色
-            # 獲取當前背景筆刷，如果它不是預設的透明樣式，就清除它
             if item.background(0).style() != QtCore.Qt.NoBrush:
                  item.setBackground(0, QtGui.QBrush())
-
             iterator += 1
 
     def auto_expand_single_root(self):
         """
         檢查樹狀視圖的頂層項目。如果只有一個，就自動將其展開。
         """
-        # topLevelItemCount() 會返回根級別的項目數量
         if self.menu_tree_view.topLevelItemCount() == 1:
             log.debug("檢測到單一根目錄，自動展開。")
-            # topLevelItem(0) 獲取第一個頂層項目
             root_item = self.menu_tree_view.topLevelItem(0)
-            root_item.setExpanded(True) # 將其設為展開狀態
+            root_item.setExpanded(True)
 
 class IconBrowserDialog(QtWidgets.QDialog):
     """
@@ -604,8 +526,7 @@ class IconBrowserDialog(QtWidgets.QDialog):
     中獲取的圖示，並提供了搜尋篩選功能。當使用者選擇一個圖示後，它會
     發出一個自訂信號 `icon_selected` 將結果傳回給主控制器。
     """
-    
-    icon_selected = QtCore.Signal(str) # 自訂信號，當使用者選擇圖示後發出
+    icon_selected = QtCore.Signal(str)
 
     def __init__(self, parent=None):
         super(IconBrowserDialog, self).__init__(parent)
@@ -614,14 +535,12 @@ class IconBrowserDialog(QtWidgets.QDialog):
         
         main_layout = QtWidgets.QVBoxLayout(self)
         
-        # 搜尋框
         self.search_input = QtWidgets.QLineEdit()
         self.search_input.setPlaceholderText("搜尋圖示名稱 (例如: sphere)...")
         self.search_input.textChanged.connect(self.filter_icons)
         
-        # 圖示列表
         self.icon_list_widget = QtWidgets.QListWidget()
-        self.icon_list_widget.setViewMode(QtWidgets.QListWidget.IconMode) # 以圖示模式顯示
+        self.icon_list_widget.setViewMode(QtWidgets.QListWidget.IconMode)
         self.icon_list_widget.setIconSize(QtCore.QSize(32, 32))
         self.icon_list_widget.setResizeMode(QtWidgets.QListWidget.Adjust)
         self.icon_list_widget.itemDoubleClicked.connect(self.accept_selection)
@@ -629,7 +548,6 @@ class IconBrowserDialog(QtWidgets.QDialog):
         main_layout.addWidget(self.search_input)
         main_layout.addWidget(self.icon_list_widget)
 
-        # 載入所有圖示
         self.load_all_icons()
 
     def load_all_icons(self):
@@ -637,25 +555,20 @@ class IconBrowserDialog(QtWidgets.QDialog):
         log.info("正在載入Maya內建圖示...")
         all_icons = cmds.resourceManager(nameFilter="*.png")
         
-        # 定義顯示文字的最大長度
         MAX_TEXT_LENGTH = 5
 
         for icon_name in sorted(all_icons):
             resource_path = f":/{icon_name}"
             
-            # [核心修改] 決定要顯示的文字
             display_text = icon_name
             if len(icon_name) > MAX_TEXT_LENGTH:
                 display_text = icon_name[:MAX_TEXT_LENGTH] + "..."
 
-            # 創建列表項，並設置顯示文字
             list_item = QtWidgets.QListWidgetItem(display_text)
             list_item.setIcon(QtGui.QIcon(resource_path))
             
-            # 將完整的、未截斷的名稱儲存在 UserRole 中
             list_item.setData(QtCore.Qt.UserRole, icon_name)
             
-            # Tooltip 依然顯示完整名稱，方便使用者查看
             list_item.setToolTip(icon_name)
             
             self.icon_list_widget.addItem(list_item)
@@ -666,11 +579,7 @@ class IconBrowserDialog(QtWidgets.QDialog):
         """根據搜尋框的文字篩選顯示的圖示。"""
         for i in range(self.icon_list_widget.count()):
             item = self.icon_list_widget.item(i)
-
-            # [Bug修正] 從 UserRole 獲取完整的名稱來進行比對
             full_item_name = item.data(QtCore.Qt.UserRole)
-            
-            # 如果圖示名稱包含搜尋文字 (不分大小寫)，則顯示，否則隱藏
             is_match = text.lower() in full_item_name.lower()
             item.setHidden(not is_match)
 
@@ -678,19 +587,15 @@ class IconBrowserDialog(QtWidgets.QDialog):
         """當使用者雙擊一個圖示時觸發。"""
         selected_icon_name = item.data(QtCore.Qt.UserRole)
         log.info(f"使用者選擇了圖示: {selected_icon_name}")
-        # 發出自訂信號，將選擇的圖示名稱傳遞出去
         self.icon_selected.emit(f":/{selected_icon_name}")
-        self.accept() # 關閉對話框
+        self.accept()
 
-
-# [新增] 創建一個自訂的 QTreeWidget 子類別
 class DraggableTreeWidget(QtWidgets.QTreeWidget):
     """
     一個繼承自 QTreeWidget 的自訂元件，增加了對複雜拖放邏輯的支援。
     它會分析拖放的具體位置，判斷使用者的意圖（排序、重新父級、設為選項框），
     然後發出自訂信號 `items_dropped` 通知 Controller 進行資料處理。
     """
-    # 信號: source_item, target_item, drop_indicator_position
     drop_event_completed = QtCore.Signal(QtWidgets.QTreeWidgetItem, QtWidgets.QTreeWidgetItem, QtWidgets.QAbstractItemView.DropIndicatorPosition)
 
     def __init__(self, parent=None):
@@ -703,7 +608,6 @@ class DraggableTreeWidget(QtWidgets.QTreeWidget):
 
     def dropEvent(self, event: QtGui.QDropEvent):
         """[最終版] 先執行預設的視覺移動，然後再發出包含完整上下文的信號。"""
-        # 記錄拖放前的資訊
         source_item = self.currentItem()
         target_item = self.itemAt(event.pos())
         indicator = self.dropIndicatorPosition()
@@ -711,23 +615,17 @@ class DraggableTreeWidget(QtWidgets.QTreeWidget):
         if not source_item:
             event.ignore(); return
 
-        # --- [核心修正] 新增對目標的驗證邏輯 ---
         if target_item:
             target_data = target_item.data(0, QtCore.Qt.UserRole)
-            # 規則：如果目標是一個選項框，並且使用者試圖將項目拖放到它“之上”(OnItem)
-            # 那麼這次操作是無效的。
             if (target_data and target_data.is_option_box and 
                 indicator == QtWidgets.QAbstractItemView.OnItem):
                 
                 log.warning("非法操作：不能將項目拖放到一個已存在的選項框之上。")
-                event.ignore() # 忽略並取消這次拖放
+                event.ignore()
                 return
-        # --- 驗證結束 ---
 
-        # 1. 讓Qt先完成所有視覺上的移動
         super(DraggableTreeWidget, self).dropEvent(event)
         
-        # 2. 發出信號，將所有必要的上下文資訊傳遞給Controller
         self.drop_event_completed.emit(source_item, target_item, indicator)
         
         event.accept()
