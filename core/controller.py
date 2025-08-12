@@ -14,7 +14,7 @@ import webbrowser
 from .logger import log  # 從我們建立的logger模組導入已經配置好的log實例
 from .setting_reader import current_setting
 from .ui import MenuBuilderUI, IconBrowserDialog
-from .data_handler import DataHandler
+from .data_handler import DataHandler,MenuItemData
 from .script_parser import ScriptParser
 from PySide2 import QtWidgets, QtCore
 from .menu_generator import MenuGenerator # 導入 MenuGenerator
@@ -355,20 +355,19 @@ class MenuBuilderController:
         log.info(f"已將當前設定另存為: {file_path}")
 
     def on_tree_item_double_clicked(self, item, column):
-        """
-        當樹狀列表中的項目被雙擊時觸發，讓工具進入「編輯模式」。
-
-        Args:
-            item (QtWidgets.QTreeWidgetItem): 被雙擊的UI項目。
-            column (int): 被雙擊的欄位索引。
-        """
+        """當項目被雙擊時，進入「編輯模式」。"""
         item_data = item.data(0, QtCore.Qt.UserRole)
-        if not item_data:
-            log.debug("雙擊的是一個文件夾，無操作。")
-            self.current_edit_item = None
-        else:
-            log.info(f"正在編輯項目: {item_data.menu_label}")
-            self.current_edit_item = item
+        
+        # [新增] 如果是分隔線或文件夾，則不進入編輯模式
+        if not item_data :
+            log.debug("雙擊的是文件，只能重新命名。")
+            return
+        if item_data.is_divider:
+            log.debug("雙擊的是分隔線，不可編輯。")
+            return
+
+        log.info(f"正在編輯項目: {item_data.menu_label}")
+        self.current_edit_item = item
         
         # 統一呼叫刷新函式
         self._refresh_editor_panel()
@@ -747,3 +746,39 @@ class MenuBuilderController:
         url = "https://github.com/jiapeiLu/menubuilder"
         log.info(f"正在打開網頁: {url}")
         webbrowser.open(url)
+
+    @preserve_ui_state
+    def on_context_add_separator(self, target_item: QtWidgets.QTreeWidgetItem):
+        """
+        在指定項目的下方新增一個分隔線。
+        """
+        # 為了計算正確的 order 和路徑，先從UI同步一次
+        self._sync_data_from_ui()
+        
+        separator_data = MenuItemData(
+            menu_label="---", # 標籤可以是任何易於識別的字串
+            is_divider=True
+        )
+
+        insert_index = len(self.current_menu_data) # 預設插入到末尾
+
+        if target_item: # 如果點擊在一個項目上
+            target_data = target_item.data(0, QtCore.Qt.UserRole)
+            if target_data:
+                separator_data.sub_menu_path = target_data.sub_menu_path
+                try:
+                    # 找到目標在列表中的位置，並插入到其後
+                    insert_index = self.current_menu_data.index(target_data) + 1
+                except ValueError:
+                    log.warning("在資料列表中找不到目標項目，分隔線將被添加到末尾。")
+            else: # 目標是文件夾
+                 separator_data.sub_menu_path = self.ui.get_path_for_item(target_item)
+                 # 插入到該文件夾所有項目的末尾 (邏輯簡化)
+        else: # 如果是在空白處右鍵 (target_item is None)
+            separator_data.sub_menu_path = ""
+        
+        # 將分隔線資料插入到計算好的位置
+        self.current_menu_data.insert(insert_index, separator_data)
+        
+        # 用更新後的資料刷新UI
+        self.ui.populate_menu_tree(self.current_menu_data)

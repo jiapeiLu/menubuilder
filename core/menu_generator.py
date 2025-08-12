@@ -116,6 +116,11 @@ class MenuGenerator:
         parent_menu_cache = {}
 
         for item in sorted_data:
+            # [核心修改] 使用新的 is_divider 屬性
+            if item.is_divider:
+                cmds.menuItem(divider=True, parent=parent)
+                continue # 處理完畢，跳到下一個項目
+
             parent = gMainWindow
             
             if item.sub_menu_path:

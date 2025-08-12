@@ -6,51 +6,57 @@
         "menu_label": "Freeze Transformations",
         "module_path": "",
         "icon_path": "",
+        "is_divider": false,
         "is_option_box": false
     },
     {
         "sub_menu_path": "Tools/Animation",
         "order": 20,
-        "function_str": "setPlayBack",
-        "menu_label": "Set Play Back",
-        "module_path": "",
-        "icon_path": "",
-        "is_option_box": false
-    },
-    {
-        "sub_menu_path": "Tools/Animation",
-        "order": 30,
         "function_str": "cmds.joint()",
         "menu_label": "Set Play Back",
         "module_path": "",
         "icon_path": "",
+        "is_divider": false,
+        "is_option_box": false
+    },
+    {
+        "sub_menu_path": "Tools/Modeling",
+        "order": 30,
+        "function_str": "cmds.polySphere()",
+        "menu_label": "Create Sphere",
+        "module_path": "",
+        "icon_path": "",
+        "is_divider": false,
         "is_option_box": false
     },
     {
         "sub_menu_path": "Tools/Modeling",
         "order": 40,
-        "function_str": "cmds.polySphere()",
-        "menu_label": "Create Sphere",
+        "function_str": "dockable:import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\nvtxMatch.main()",
+        "menu_label": "Main",
         "module_path": "",
         "icon_path": "",
+        "is_divider": false,
         "is_option_box": false
     },
     {
         "sub_menu_path": "Tools/Modeling",
         "order": 50,
-        "function_str": "dockable:import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\nvtxMatch.main()",
-        "menu_label": "Main",
+        "function_str": "import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\nvtxMatch.layout()",
+        "menu_label": "Layout",
         "module_path": "",
         "icon_path": "",
+        "is_divider": false,
         "is_option_box": false
     },
     {
         "sub_menu_path": "Tools/Modeling",
         "order": 60,
-        "function_str": "import vtxMatch\nfrom importlib import reload\nreload(vtxMatch)\nvtxMatch.layout()",
-        "menu_label": "Layout",
+        "function_str": "",
+        "menu_label": "---",
         "module_path": "",
         "icon_path": "",
+        "is_divider": true,
         "is_option_box": false
     },
     {
@@ -60,6 +66,7 @@
         "menu_label": "Vtx Match",
         "module_path": "",
         "icon_path": "",
+        "is_divider": false,
         "is_option_box": false
     },
     {
@@ -69,6 +76,7 @@
         "menu_label": "Vtx Match Pyside",
         "module_path": "",
         "icon_path": "",
+        "is_divider": false,
         "is_option_box": false
     }
 ]

@@ -252,24 +252,23 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             # --- [核心修改] 根據 is_option_box 決定顯示樣式 ---
             display_label = item_data.menu_label
             
-            # 檢查當前項目是否為 Option Box
-            if item_data.is_option_box:
-                # 為標籤加上前綴，提供視覺提示
+            # 優先檢查是否為分隔線
+            if item_data.is_divider:
+                display_label = "──────────"
+            elif item_data.is_option_box:
                 display_label = f"(□) {item_data.menu_label}"
-                
-                # 找到它邏輯上的父項目 (列表中的上一個)
-                # 這部分邏輯在Controller中處理，UI只負責顯示
-                # 我們可以在這裡嘗試找到它在UI中的父級並進行縮排
-                # 但更簡單的方式是讓Controller處理好順序和父子關係
-                # 目前我們先只做視覺提示
 
             # 創建並附加真正的功能節點
             menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [display_label])
-            # 注意：功能節點本身不可直接在樹上編輯名稱
             menu_qitem.setData(0, QtCore.Qt.UserRole, item_data)
-            
-            # --- [核心修改] is_option_box ---
-            if item_data.is_option_box:
+
+            # 應用特殊樣式
+            if item_data.is_divider:
+                # 讓分隔符在UI中不可編輯、不可拖動、不可選擇，顏色變暗
+                flags = QtCore.Qt.ItemIsEnabled
+                menu_qitem.setFlags(flags)
+                menu_qitem.setForeground(0, QtGui.QColor("#666666"))
+            elif item_data.is_option_box:
                 menu_qitem.setToolTip(0, f"此項目是一個選項框(Option Box)，\n隸屬於它上方的菜單項。")
                 # 可以考慮改變顏色以示區分
                 font = menu_qitem.font(0)
@@ -447,43 +446,50 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         item = self.menu_tree_view.itemAt(point)
 
         if item:
-            # --- 如果點擊在一個項目上 ---
             item_data = item.data(0, QtCore.Qt.UserRole)
-            
-            # [新增] 為所有項目（包括文件夾）增加重命名選項
-            action_rename = menu.addAction("重新命名 (Rename)")
-            # 連接到QTreeWidget的內建editItem方法，非常方便
-            action_rename.triggered.connect(lambda: self.menu_tree_view.editItem(item))
 
-            if item_data: # 這是個菜單項
-                action_edit = menu.addAction("編輯此項目屬性 (Edit Properties)")
-                action_edit.triggered.connect(
-                    functools.partial(self.controller.on_tree_item_double_clicked, item, 0)
+            # --- [核心修改] 檢查項目是否為分隔線 ---
+            if item_data and item_data.is_divider:
+                # 如果是分隔線，只提供「刪除」選項
+                action_delete = menu.addAction("刪除...")
+                action_delete.triggered.connect(
+                    functools.partial(self.controller.on_context_delete, item)
                 )
-            
-            menu.addSeparator()
+            else:
+                # --- 如果是普通項目或文件夾，則提供完整選單 ---
+                path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
 
-            path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
-            action_add_under = menu.addAction("在此路徑下新增項目...")
-            action_add_under.triggered.connect(
-                functools.partial(self.controller.on_context_add_under, path_for_actions)
-            )
+                action_rename = menu.addAction("重新命名 (Rename)")
+                action_rename.triggered.connect(lambda: self.menu_tree_view.editItem(item))
 
-            # [核心修改] 刪除以下兩行
-            # action_add_dockable = menu.addAction("在此路徑下新增可停靠項目...")
-            # action_add_dockable.triggered.connect(...)
+                if item_data: # 這是個功能項
+                    action_edit = menu.addAction("編輯 (Edit)")
+                    action_edit.triggered.connect(
+                        functools.partial(self.controller.on_tree_item_double_clicked, item, 0)
+                    )
+                
+                menu.addSeparator()
 
-            menu.addSeparator()
+                action_add_under = menu.addAction("新增項目...")
+                action_add_under.triggered.connect(
+                    functools.partial(self.controller.on_context_add_under, path_for_actions)
+                )
+                action_add_separator = menu.addAction("新增分隔線 (Add Separator)")
+                action_add_separator.triggered.connect(
+                    functools.partial(self.controller.on_context_add_separator, item)
+                )
 
-            action_send_path = menu.addAction(f"傳送路徑 '{path_for_actions}' 至編輯器")
-            action_send_path.triggered.connect(
-                functools.partial(self.controller.on_context_send_path, path_for_actions)
-            )
-            
-            action_delete = menu.addAction("刪除...")
-            action_delete.triggered.connect(
-                functools.partial(self.controller.on_context_delete, item)
-            )
+                menu.addSeparator()
+
+                action_send_path = menu.addAction(f"傳送路徑 '{path_for_actions}' 至編輯器")
+                action_send_path.triggered.connect(
+                    functools.partial(self.controller.on_context_send_path, path_for_actions)
+                )
+                
+                action_delete = menu.addAction("刪除...")
+                action_delete.triggered.connect(
+                    functools.partial(self.controller.on_context_delete, item)
+                )
 
         else:
             # --- 如果點擊在空白處 ---
@@ -491,10 +497,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             action_add_root.triggered.connect(
                 functools.partial(self.controller.on_context_add_under, "")
             )
-
-            # [核心修改] 刪除以下兩行
-            # action_add_dockable_root = menu.addAction("新增根級可停靠項目...")
-            # action_add_dockable_root.triggered.connect(...)
 
         menu.exec_(self.menu_tree_view.mapToGlobal(point))
 
