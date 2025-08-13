@@ -172,15 +172,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.icon_preview.setText("無")
         
         self.icon_input.textChanged.connect(self.update_icon_preview)
-        
-        self.option_box_checkbox = QtWidgets.QCheckBox("作為選項框 (IsOptionBox)")
-        self.option_box_checkbox.setEnabled(False)
 
         form_layout.addRow("菜單標籤 (Label):", self.label_input)
         form_layout.addRow("菜單路徑 (Path):", self.path_input)
         form_layout.addRow("圖示路徑 (Icon):", icon_path_layout)
         form_layout.addRow("預覽 (Preview):", self.icon_preview)
-        form_layout.addRow(self.option_box_checkbox)
 
         self.attribute_box.setLayout(form_layout)
        
@@ -301,7 +297,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             menu_label=self.label_input.text(),
             sub_menu_path=self.path_input.text(),
             icon_path=self.icon_input.text(),
-            is_option_box=self.option_box_checkbox.isChecked(),
             function_str=function_string,
             command_type=command_type # <-- [修改] 傳入指令類型
         )
@@ -380,7 +375,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.label_input.setText(data.menu_label)
         self.path_input.setText(data.sub_menu_path)
         self.icon_input.setText(data.icon_path)
-        self.option_box_checkbox.setChecked(data.is_option_box)
         
         # --- [修改] 根據資料設定指令類型 ---
         if data.command_type == "mel":
@@ -402,63 +396,75 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
     def on_tree_context_menu(self, point: QtCore.QPoint):
         """
-        當接收到 `customContextMenuRequested` 信號時，創建並顯示右鍵選單。
-
-        選單的內容會根據使用者點擊的位置（是在項目上還是空白處）動態生成。
-
-        Args:
-            point (QtCore.QPoint): 使用者右鍵點擊的視窗座標。
+        [微調版] 允許在分隔線上新增項目。
         """
         menu = QtWidgets.QMenu(self)
         item = self.menu_tree_view.itemAt(point)
 
         if item:
             item_data = item.data(0, QtCore.Qt.UserRole)
+            
+            is_parent_item = False
+            if item_data and not item_data.is_option_box:
+                item_below = self.menu_tree_view.itemBelow(item)
+                if item_below and item.parent() == item_below.parent():
+                    data_below = item_below.data(0, QtCore.Qt.UserRole)
+                    if data_below and data_below.is_option_box:
+                        is_parent_item = True
+            
+            path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
+            
+            # --- 結構群組 ---
+            if item_data and not item_data.is_divider: # 只有功能項可以被操作為選項框
+                action_toggle_option_box = QtWidgets.QAction()
+                if item_data.is_option_box:
+                    action_toggle_option_box.setText("取消選項框 (Unset as Option Box)")
+                    action_toggle_option_box.setEnabled(True)
+                else:
+                    action_toggle_option_box.setText("設為選項框 (Set as Option Box)")
+                    is_valid = True
+                    if is_parent_item: is_valid = False
+                    else:
+                        item_above = self.menu_tree_view.itemAbove(item)
+                        if not item_above or item.parent() != item_above.parent(): is_valid = False
+                        else:
+                            data_above = item_above.data(0, QtCore.Qt.UserRole)
+                            if not data_above or data_above.is_option_box: is_valid = False
+                    action_toggle_option_box.setEnabled(is_valid)
+                action_toggle_option_box.triggered.connect(functools.partial(self.controller.on_context_toggle_option_box, item))
+                menu.addAction(action_toggle_option_box)
 
-            if item_data and item_data.is_divider:
-                action_delete = menu.addAction("刪除...")
-                action_delete.triggered.connect(
-                    functools.partial(self.controller.on_context_delete, item)
-                )
-            else:
-                path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
+            action_add_under = menu.addAction("新增項目...")
+            action_add_separator = menu.addAction("新增分隔線")
 
-                action_rename = menu.addAction("重新命名 (Rename)")
-                action_rename.triggered.connect(lambda: self.menu_tree_view.editItem(item))
+            # 父物件下方不能插入任何東西
+            if is_parent_item:
+                action_add_under.setEnabled(False)
+                action_add_separator.setEnabled(False)
+            
+            is_folder = not item_data
+            # 資料夾內部不能插入分隔線
+            if is_folder:
+                action_add_separator.setEnabled(False)
 
-                if item_data:
-                    action_edit = menu.addAction("編輯 (Edit)")
-                    action_edit.triggered.connect(
-                        functools.partial(self.controller.on_tree_item_double_clicked, item, 0)
-                    )
-                
+            # 將路徑資訊傳遞給新增操作
+            action_add_under.triggered.connect(functools.partial(self.controller.on_context_add_under, path_for_actions))
+            action_add_separator.triggered.connect(functools.partial(self.controller.on_context_add_separator, item))
+            menu.addSeparator()
+
+            # --- 輔助與破壞性群組 ---
+            if not (item_data and item_data.is_divider): # 分隔線沒有路徑可傳送
+                menu.addAction(f"傳送路徑 '{path_for_actions}' 至編輯器",
+                               functools.partial(self.controller.on_context_send_path, path_for_actions))
                 menu.addSeparator()
-
-                action_add_under = menu.addAction("新增項目...")
-                action_add_under.triggered.connect(
-                    functools.partial(self.controller.on_context_add_under, path_for_actions)
-                )
-                action_add_separator = menu.addAction("新增分隔線 (Add Separator)")
-                action_add_separator.triggered.connect(
-                    functools.partial(self.controller.on_context_add_separator, item)
-                )
-
-                menu.addSeparator()
-
-                action_send_path = menu.addAction(f"傳送路徑 '{path_for_actions}' 至編輯器")
-                action_send_path.triggered.connect(
-                    functools.partial(self.controller.on_context_send_path, path_for_actions)
-                )
-                
-                action_delete = menu.addAction("刪除...")
-                action_delete.triggered.connect(
-                    functools.partial(self.controller.on_context_delete, item)
-                )
+            
+            action_delete = menu.addAction("刪除...")
+            if is_parent_item:
+                action_delete.setText("刪除主項與選項框...")
+            action_delete.triggered.connect(functools.partial(self.controller.on_context_delete, item))
         else:
-            action_add_root = menu.addAction("新增根級項目...")
-            action_add_root.triggered.connect(
-                functools.partial(self.controller.on_context_add_under, "")
-            )
+            # --- 情況三：點擊空白處 ---
+            menu.addAction("新增根級項目...", functools.partial(self.controller.on_context_add_under, ""))
 
         menu.exec_(self.menu_tree_view.mapToGlobal(point))
 
@@ -615,33 +621,40 @@ class DraggableTreeWidget(QtWidgets.QTreeWidget):
 
     def dropEvent(self, event: QtGui.QDropEvent):
         """
-        [增加核心規則驗證] 在放下事件發生時，先驗證操作是否符合層級結構原則。
+        [新規則版] 在放下事件發生時，嚴格驗證操作是否符合所有結構原則。
         """
         target_item = self.itemAt(event.pos())
         indicator = self.dropIndicatorPosition()
-
-        # --- [核心修正] 執行原則一的驗證 ---
-        # 判斷使用者是否試圖將一個項目，拖曳到另一個「功能項目」的「上面」(OnItem)，
-        # 以使其成為子項目。這是不被允許的。
-        if indicator == QtWidgets.QAbstractItemView.OnItem and target_item:
-            target_data = target_item.data(0, QtCore.Qt.UserRole)
-            
-            # 如果 target_data 存在，代表目標是一個「功能項目」，而不是一個「資料夾」。
-            if target_data:
-                log.warning("操作被阻止：不能將項目拖曳為另一個功能項目的子級。只能拖曳至資料夾中，或項目的前後位置。")
-                event.ignore() # 忽略（拒絕）這次放下操作
-                return         # 提前終止函式
-
-        # --- 驗證通過後，才執行原有的邏輯 ---
         source_item = self.currentItem()
         if not source_item:
-            event.ignore()
-            return
+            event.ignore(); return
 
-        # 執行 Qt 預設的視覺移動
+        # --- 驗證區 ---
+
+        # [規則 4] 驗證：功能項目不能成為功能項目的子級
+        if indicator == QtWidgets.QAbstractItemView.OnItem and target_item:
+            if target_item.data(0, QtCore.Qt.UserRole): # 如果目標是功能項
+                log.warning("操作被阻止：不能將項目拖曳為另一個功能項目的子級。")
+                event.ignore(); return
+
+        # [規則 5] 驗證：不能在父物件與其選項框之間插入任何項目
+        # 情況 A：嘗試拖到一個父物件的「下方」
+        if indicator == QtWidgets.QAbstractItemView.BelowItem and target_item:
+            item_below = self.itemBelow(target_item)
+            if item_below and item_below.parent() == target_item.parent():
+                data_below = item_below.data(0, QtCore.Qt.UserRole)
+                if data_below and data_below.is_option_box:
+                    log.warning("操作被阻止：不能在父物件與其選項框之間插入項目。")
+                    event.ignore(); return
+        
+        # 情況 B：嘗試拖到一個選項框的「上方」
+        if indicator == QtWidgets.QAbstractItemView.AboveItem and target_item:
+            target_data = target_item.data(0, QtCore.Qt.UserRole)
+            if target_data and target_data.is_option_box:
+                log.warning("操作被阻止：不能在父物件與其選項框之間插入項目。")
+                event.ignore(); return
+
+        # --- 驗證通過 ---
         super(DraggableTreeWidget, self).dropEvent(event)
-        
-        # 發射信號，通知 Controller 資料已變更
         self.drop_event_completed.emit(source_item, target_item, indicator)
-        
         event.accept()
