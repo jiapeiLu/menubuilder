@@ -403,6 +403,11 @@ class MenuBuilderController:
             log.warning("請確保'菜單標籤'欄位不為空。")
             QtWidgets.QMessageBox.warning(self.ui, tr('attribute_editor_group'), tr('controller_warn_label_empty'))
             return
+        
+        if not edited_data.sub_menu_path:
+            log.warning("請確保'菜單路徑'欄位不為空。")
+            QtWidgets.QMessageBox.warning(self.ui, tr('attribute_editor_group'), tr('controller_warn_path_empty'))
+            return
 
         item_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole) if self.current_edit_item else None
         

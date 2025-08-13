@@ -330,6 +330,11 @@ LANG = {
         'zh_tw': "請確保'菜單標籤'欄位不為空。",
         'ja_jp': '「ラベル」フィールドが空でないことを確認してください。'
     },
+    'controller_warn_path_empty': {
+        'en_us': "Please ensure the 'Path' field is not empty.",
+        'zh_tw': "請確保'菜單路徑'欄位不為空。",
+        'ja_jp': '「パス」欄が空でないことを確認してください。'
+    },
     'update_finish_editing_button': {
         'en_us': 'Update | Finish Editing',
         'zh_tw': '更新 | 結束編輯',

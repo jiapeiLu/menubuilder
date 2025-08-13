@@ -463,7 +463,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             action_delete.triggered.connect(functools.partial(self.controller.on_context_delete, item))
         else:
             # --- 情況三：點擊空白處 ---
-            menu.addAction(tr('context_add_root'), functools.partial(self.controller.on_context_add_under, ""))
+            pass
 
         menu.exec_(self.menu_tree_view.mapToGlobal(point))
 
