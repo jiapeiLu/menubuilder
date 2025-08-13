@@ -68,7 +68,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.controller = controller
         self.setWindowTitle(f"Menu Builder v{__version__}")
         self.setGeometry(300, 300, 800, 700)
-        
+        QtWidgets.QApplication.instance().installEventFilter(self)
         # 儲存 QTreeWidgetItems 以便查找
         self.item_map = {}
 
@@ -138,12 +138,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         self.manual_cmd_input = QtWidgets.QTextEdit()
         self.manual_cmd_input.setPlaceholderText("請在此輸入指令，並選取對應Python或mel語言...")
-        self.test_run_button = QtWidgets.QPushButton("測試執行") # <-- [新增]
-        self.test_run_button.setStyleSheet("background-color: #446688;")
+        self.test_run_button = QtWidgets.QPushButton("測試執行") 
 
-        manual_input_layout.addLayout(command_type_layout) # <-- [新增] 將類型選擇佈局加入
+        manual_input_layout.addLayout(command_type_layout) 
         manual_input_layout.addWidget(self.manual_cmd_input)
-        manual_input_layout.addWidget(self.test_run_button) # <-- [新增]
+        manual_input_layout.addWidget(self.test_run_button) 
 
         self.attribute_box = QtWidgets.QGroupBox("屬性編輯器")
         form_layout = QtWidgets.QFormLayout()
@@ -530,6 +529,24 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             log.debug("檢測到單一根目錄，自動展開。")
             root_item = self.menu_tree_view.topLevelItem(0)
             root_item.setExpanded(True)
+
+    def eventFilter(self, watched_object, event):
+        """
+        覆寫 Qt 內建的事件過濾器。
+        這個函式會攔截應用程式中的所有事件。
+        """
+        # 我們只關心鍵盤按下的事件
+        if event.type() == QtCore.QEvent.KeyPress:
+            # 並且只關心被按下的鍵是否為 ESC
+            if event.key() == QtCore.Qt.Key_Escape:
+                # 如果是，就呼叫 Controller 的取消函式
+                log.debug("事件過濾器偵測到 ESC 鍵，嘗試取消編輯。")
+                self.controller.on_cancel_edit()
+                # 返回 True，代表我們已經處理了這個事件，它不需要再繼續傳遞
+                return True
+        
+        # 對於所有其他不關心的事件，把它們交還給 Qt 繼續進行預設的處理
+        return super(MenuBuilderUI, self).eventFilter(watched_object, event)
 
 class IconBrowserDialog(QtWidgets.QDialog):
     """

@@ -596,31 +596,46 @@ class MenuBuilderController:
         self.ui.update_tree_view_title(self.current_config_name)
 
     @block_ui_signals('menu_tree_view')
+    @block_ui_signals('menu_tree_view')
     def _refresh_editor_panel(self):
         """
-        [穩定版] 根據 self.current_edit_item 的狀態，刷新右側編輯面板並管理拖曳狀態。
+        [增加視覺區隔] 根據 self.current_edit_item 的狀態，刷新右側編輯面板並管理拖曳及可用狀態。
         """
         self.ui.clear_all_highlights()
+
         if self.current_edit_item:
-            self.ui.menu_tree_view.setDragEnabled(False)
-            log.debug("已進入編輯模式，暫時禁用拖曳功能。")
+            # --- 進入編輯模式 ---
+            
+            # [核心修正] 禁用左側樹狀圖，強化視覺區隔，並禁止拖曳
+            self.ui.menu_tree_view.setEnabled(False)
+            log.debug("已進入編輯模式，禁用樹狀圖。")
+
+            # 原有的高亮和欄位填充邏輯不變
             self.ui.set_item_highlight(self.current_edit_item, True)
             item_data = self.current_edit_item.data(0, QtCore.Qt.UserRole)
             if not item_data:
                 self.current_edit_item = None
+                # 在 finally 中會恢復信號，所以這裡可以直接 return
                 return
-            self.ui.add_update_button.setText("更新項目 (Update)")
-            # 因為 checkbox 已移除，不再需要 setEnabled
+
+            self.ui.add_update_button.setText("更新 | 結束編輯 項目")
+            self.ui.add_update_button.setStyleSheet("background-color: #446688;")
             self.ui.set_attributes_to_fields(item_data)
         else:
-            self.ui.menu_tree_view.setDragEnabled(True)
-            log.debug("已退出編輯模式，恢復拖曳功能並重設編輯器。")
+            # --- 退出編輯模式 / 處於新增模式 ---
+
+            # [核心修正] 恢復左側樹狀圖的可用狀態
+            self.ui.menu_tree_view.setEnabled(True)
+            log.debug("已退出編輯模式，恢復樹狀圖。")
+            
             self.ui.add_update_button.setText("新增至結構")
+            #highlight_color = QtGui.QColor("#446A3B")
+            self.ui.add_update_button.setStyleSheet("")
             self.ui.python_radio.setChecked(True)
             self.ui.label_input.clear()
             self.ui.icon_input.clear()
             self.ui.manual_cmd_input.clear()
-            self.ui.input_tabs.setCurrentIndex(0)
+            #self.ui.input_tabs.setCurrentIndex(0)
 
     @preserve_ui_state
     def on_drop_event_completed(self, source_item: QtWidgets.QTreeWidgetItem, 
@@ -820,3 +835,15 @@ class MenuBuilderController:
         except ValueError:
             return None
         return None
+    
+    def on_cancel_edit(self):
+        """
+        處理使用者取消編輯的操作 (例如按下 ESC 鍵)。
+        """
+        # 只有當前正處於編輯模式時，這個操作才有效
+        if self.current_edit_item:
+            log.info("使用者取消編輯，正在退出編輯模式...")
+            
+            # 執行退出編輯模式的標準流程
+            self.current_edit_item = None
+            self._refresh_editor_panel()
