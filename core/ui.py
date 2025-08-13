@@ -16,7 +16,7 @@ from .dto import MenuItemData
 from .logger import log
 import maya.cmds as cmds
 import functools
-
+from .translator import tr
 from shiboken2 import wrapInstance
 import maya.OpenMayaUI as omui
 
@@ -66,7 +66,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         super(MenuBuilderUI, self).__init__(parent)
 
         self.controller = controller
-        self.setWindowTitle(f"Menu Builder v{__version__}")
+        self.setWindowTitle(f"{tr('app_title')} v{__version__}")
         self.setGeometry(300, 300, 800, 700)
         QtWidgets.QApplication.instance().installEventFilter(self)
         # 儲存 QTreeWidgetItems 以便查找
@@ -86,9 +86,9 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         left_container_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(left_container_widget)
 
-        self.left_label = QtWidgets.QLabel("現有菜單結構 (Menu Configuration)")
+        self.left_label = QtWidgets.QLabel(tr('menu_config_title'))
         self.menu_tree_view = DraggableTreeWidget()
-        self.menu_tree_view.setHeaderLabels(["菜單結構 (Menu Structure)"])
+        self.menu_tree_view.setHeaderLabels([tr('menu_structure_header')])
         self.menu_tree_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         left_layout.addWidget(self.left_label)
@@ -101,11 +101,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         file_parse_widget = QtWidgets.QWidget()
         manual_input_widget = QtWidgets.QWidget()
 
-        self.input_tabs.addTab(file_parse_widget, "從檔案解析")
-        self.input_tabs.addTab(manual_input_widget, "手動輸入指令")
+        self.input_tabs.addTab(file_parse_widget, tr('tab_parse_from_file'))
+        self.input_tabs.addTab(manual_input_widget, tr('tab_manual_input'))
 
         file_parse_layout = QtWidgets.QVBoxLayout(file_parse_widget)
-        self.browse_button = QtWidgets.QPushButton("瀏覽腳本檔案...")
+        self.browse_button = QtWidgets.QPushButton(tr('browse_script_button'))
         self.current_script_path_label = QtWidgets.QLineEdit()
         self.current_script_path_label.setReadOnly(True)
         self.current_script_path_label.setStyleSheet("background-color: #2E2E2E; border: none;")
@@ -120,8 +120,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         
         # --- [新增] 指令類型選擇 ---
         # -----------------------------------------------------------------
-        self.python_radio = QtWidgets.QRadioButton("Python")
-        self.mel_radio = QtWidgets.QRadioButton("MEL")
+        self.python_radio = QtWidgets.QRadioButton(tr('python_radio'))
+        self.mel_radio = QtWidgets.QRadioButton(tr('mel_radio'))
         self.python_radio.setChecked(True) # 預設選中 Python
         
         # 使用 QButtonGroup 確保互斥
@@ -130,35 +130,35 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.command_type_group.addButton(self.mel_radio)
 
         command_type_layout = QtWidgets.QHBoxLayout()
-        command_type_layout.addWidget(QtWidgets.QLabel("指令類型 (Type):"))
+        command_type_layout.addWidget(QtWidgets.QLabel(tr('command_type_label')))
         command_type_layout.addWidget(self.python_radio)
         command_type_layout.addWidget(self.mel_radio)
         command_type_layout.addStretch()
         # -----------------------------------------------------------------
 
         self.manual_cmd_input = QtWidgets.QTextEdit()
-        self.manual_cmd_input.setPlaceholderText("請在此輸入指令，並選取對應Python或mel語言...")
-        self.test_run_button = QtWidgets.QPushButton("測試執行") 
+        self.manual_cmd_input.setPlaceholderText(tr('command_input_placeholder'))
+        self.test_run_button = QtWidgets.QPushButton(tr('test_run_button')) 
 
         manual_input_layout.addLayout(command_type_layout) 
         manual_input_layout.addWidget(self.manual_cmd_input)
         manual_input_layout.addWidget(self.test_run_button) 
 
-        self.attribute_box = QtWidgets.QGroupBox("屬性編輯器")
+        self.attribute_box = QtWidgets.QGroupBox(tr('attribute_editor_group'))
         form_layout = QtWidgets.QFormLayout()
 
         self.label_input = QtWidgets.QLineEdit()
         self.path_input = QtWidgets.QLineEdit()
-        self.path_input.setPlaceholderText("例如: Tools/Modeling")
+        self.path_input.setPlaceholderText(tr('path_placeholder'))
         
         icon_path_layout = QtWidgets.QHBoxLayout()
         self.icon_input = QtWidgets.QLineEdit()
-        self.icon_input.setPlaceholderText("輸入路徑或點擊右側按鈕瀏覽...")
+        self.icon_input.setPlaceholderText(tr('icon_placeholder'))
         
-        self.icon_browse_btn = QtWidgets.QPushButton("自訂...")
-        self.icon_browse_btn.setToolTip("瀏覽本機的圖示檔案 (e.g., C:/icon.png)")
-        self.icon_buildin_btn = QtWidgets.QPushButton("內建...")
-        self.icon_buildin_btn.setToolTip("瀏覽Maya內建圖示 (e.g., :polyCube.png)")
+        self.icon_browse_btn = QtWidgets.QPushButton(tr('custom_button'))
+        self.icon_browse_btn.setToolTip(tr('custom_icon_tooltip'))
+        self.icon_buildin_btn = QtWidgets.QPushButton(tr('builtin_button'))
+        self.icon_buildin_btn.setToolTip(tr('builtin_icon_tooltip'))
 
         icon_path_layout.addWidget(self.icon_input)
         icon_path_layout.addWidget(self.icon_browse_btn)
@@ -168,20 +168,20 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.icon_preview.setFixedSize(32, 32)
         self.icon_preview.setStyleSheet("border: 1px solid #555; background-color: #333; border-radius: 4px;")
         self.icon_preview.setAlignment(QtCore.Qt.AlignCenter)
-        self.icon_preview.setText("無")
+        self.icon_preview.setText(tr('preview_none'))
         
         self.icon_input.textChanged.connect(self.update_icon_preview)
 
-        form_layout.addRow("菜單標籤 (Label):", self.label_input)
-        form_layout.addRow("菜單路徑 (Path):", self.path_input)
-        form_layout.addRow("圖示路徑 (Icon):", icon_path_layout)
-        form_layout.addRow("預覽 (Preview):", self.icon_preview)
+        form_layout.addRow(tr('label_form'), self.label_input)
+        form_layout.addRow(tr('path_form'), self.path_input)
+        form_layout.addRow(tr('icon_form'), icon_path_layout)
+        form_layout.addRow(tr('preview_form'), self.icon_preview)
 
         self.attribute_box.setLayout(form_layout)
        
-        self.add_update_button = QtWidgets.QPushButton("新增至結構")
-        self.save_button = QtWidgets.QPushButton("儲存設定檔")
-        self.build_menus_button = QtWidgets.QPushButton("✨ 在Maya中產生/刷新菜單 (Build Menus)")
+        self.add_update_button = QtWidgets.QPushButton(tr('add_to_structure_button'))
+        self.save_button = QtWidgets.QPushButton(tr('save_config_button'))
+        self.build_menus_button = QtWidgets.QPushButton(tr('build_menus_button'))
 
         right_layout.addWidget(self.input_tabs)
         right_layout.addWidget(self.attribute_box)
@@ -196,21 +196,21 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         splitter.setSizes([350, 450]) 
 
         menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu("檔案(File)")
+        file_menu = menu_bar.addMenu(tr('file_menu'))
 
-        self.open_action = file_menu.addAction("開啟設定檔 (Open)...")
-        self.merge_action = file_menu.addAction("合併設定檔 (Merge)...")
-        self.save_action = file_menu.addAction("存檔 (Save )...")
-        self.save_as_action = file_menu.addAction("另存新檔 (Save As)...")
+        self.open_action = file_menu.addAction(tr('open_action'))
+        self.merge_action = file_menu.addAction(tr('merge_action'))
+        self.save_action = file_menu.addAction(tr('save_action'))
+        self.save_as_action = file_menu.addAction(tr('save_as_action'))
         
         file_menu.addSeparator()
         
-        self.exit_action = file_menu.addAction("離開 (Exit)")
+        self.exit_action = file_menu.addAction(tr('exit_action'))
 
-        help_menu = menu_bar.addMenu("幫助(Help)")
+        help_menu = menu_bar.addMenu(tr('help_menu'))
         
-        self.about_action = help_menu.addAction("關於 (About)")
-        self.github_action = help_menu.addAction("在 GitHub 上查看...")
+        self.about_action = help_menu.addAction(tr('about_action'))
+        self.github_action = help_menu.addAction(tr('github_action'))
         
     def populate_menu_tree(self, items: List[MenuItemData]):
         """
@@ -248,9 +248,9 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             display_label = item_data.menu_label
             
             if item_data.is_divider:
-                display_label = "──────────"
+                display_label = tr('divider_text')
             elif item_data.is_option_box:
-                display_label = f"(□) {item_data.menu_label}"
+                display_label = tr('option_box_prefix', label=item_data.menu_label)
 
             menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [display_label])
             menu_qitem.setData(0, QtCore.Qt.UserRole, item_data)
@@ -265,7 +265,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 menu_qitem.setFlags(flags)
 
                 # 以下的視覺樣式設定不變
-                menu_qitem.setToolTip(0, f"此項目是一個選項框(Option Box)，\n隸屬於它上方的菜單項。")
+                menu_qitem.setToolTip(0, tr('option_box_tooltip'))
                 font = menu_qitem.font(0)
                 font.setItalic(True)
                 menu_qitem.setFont(0, font)
@@ -417,10 +417,10 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             if item_data and not item_data.is_divider: # 只有功能項可以被操作為選項框
                 action_toggle_option_box = QtWidgets.QAction()
                 if item_data.is_option_box:
-                    action_toggle_option_box.setText("取消選項框 (Unset as Option Box)")
+                    action_toggle_option_box.setText(tr('context_unset_option_box'))
                     action_toggle_option_box.setEnabled(True)
                 else:
-                    action_toggle_option_box.setText("設為選項框 (Set as Option Box)")
+                    action_toggle_option_box.setText(tr('context_set_option_box'))
                     is_valid = True
                     if is_parent_item: is_valid = False
                     else:
@@ -433,8 +433,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 action_toggle_option_box.triggered.connect(functools.partial(self.controller.on_context_toggle_option_box, item))
                 menu.addAction(action_toggle_option_box)
 
-            action_add_under = menu.addAction("新增項目...")
-            action_add_separator = menu.addAction("新增分隔線")
+            action_add_under = menu.addAction(tr('context_add_item'))
+            action_add_separator = menu.addAction(tr('context_add_separator'))
 
             # 父物件下方不能插入任何東西
             if is_parent_item:
@@ -453,26 +453,26 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
             # --- 輔助與破壞性群組 ---
             if not (item_data and item_data.is_divider): # 分隔線沒有路徑可傳送
-                menu.addAction(f"傳送路徑 '{path_for_actions}' 至編輯器",
+                menu.addAction(tr('context_send_path', path=path_for_actions),
                                functools.partial(self.controller.on_context_send_path, path_for_actions))
                 menu.addSeparator()
             
-            action_delete = menu.addAction("刪除...")
+            action_delete = menu.addAction(tr('context_delete'))
             if is_parent_item:
-                action_delete.setText("刪除主項與選項框...")
+                action_delete.setText(tr('context_delete_parent_with_option_box'))
             action_delete.triggered.connect(functools.partial(self.controller.on_context_delete, item))
         else:
             # --- 情況三：點擊空白處 ---
-            menu.addAction("新增根級項目...", functools.partial(self.controller.on_context_add_under, ""))
+            menu.addAction(tr('context_add_root'), functools.partial(self.controller.on_context_add_under, ""))
 
         menu.exec_(self.menu_tree_view.mapToGlobal(point))
 
     def update_tree_view_title(self, filename: str):
         """更新左側樹狀視圖的標題以顯示當前檔名。"""
         if filename:
-            self.left_label.setText(f"現有菜單結構 - {filename}.json")
+            self.left_label.setText(tr('menu_config_title_with_file', filename=f"{filename}.json"))
         else:
-            self.left_label.setText("現有菜單結構 (Menu Configuration)")
+            self.left_label.setText(tr('menu_config_title'))
 
     def update_icon_preview(self, path: str):
         """
@@ -483,13 +483,13 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         """
         if not path:
             self.icon_preview.clear()
-            self.icon_preview.setText("無")
+            self.icon_preview.setText(tr('preview_none'))
             return
 
         icon = QtGui.QIcon(path)
         if icon.isNull():
             self.icon_preview.clear()
-            self.icon_preview.setText("無效")
+            self.icon_preview.setText(tr('preview_invalid'))
         else:
             pixmap = icon.pixmap(32, 32)
             self.icon_preview.setPixmap(pixmap)
@@ -547,7 +547,15 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         
         # 對於所有其他不關心的事件，把它們交還給 Qt 繼續進行預設的處理
         return super(MenuBuilderUI, self).eventFilter(watched_object, event)
+    def clean_up(self):
+        """
+        在視窗關閉前執行必要的清理工作，尤其是移除全域事件過濾器。
+        """
+        log.info("正在清理 UI，移除全域事件過濾器...")
+        QtWidgets.QApplication.instance().removeEventFilter(self)
+        log.info("事件過濾器已成功移除。")
 
+        
 class IconBrowserDialog(QtWidgets.QDialog):
     """
     一個用於瀏覽和選擇Maya內建圖示的獨立對話框。
@@ -560,13 +568,13 @@ class IconBrowserDialog(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super(IconBrowserDialog, self).__init__(parent)
-        self.setWindowTitle("Maya Icon Browser")
+        self.setWindowTitle(tr('icon_browser_title'))
         self.setGeometry(400, 400, 500, 600)
         
         main_layout = QtWidgets.QVBoxLayout(self)
         
         self.search_input = QtWidgets.QLineEdit()
-        self.search_input.setPlaceholderText("搜尋圖示名稱 (例如: sphere)...")
+        self.search_input.setPlaceholderText(tr('icon_search_placeholder'))
         self.search_input.textChanged.connect(self.filter_icons)
         
         self.icon_list_widget = QtWidgets.QListWidget()

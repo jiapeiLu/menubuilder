@@ -18,6 +18,7 @@ from .setting_reader import current_setting
 from .ui import MenuBuilderUI, IconBrowserDialog
 from .data_handler import DataHandler,MenuItemData
 from .script_parser import ScriptParser
+from .translator import tr
 from PySide2 import QtWidgets, QtCore
 from .menu_generator import MenuGenerator # 導入 MenuGenerator
 from maya import cmds, mel
@@ -158,7 +159,8 @@ class MenuBuilderController:
             return
             
         log.info(f"正在載入預設菜單設定檔: {default_config}.json")
-        
+        language = current_setting.get('language', 'en_us')
+        log.info(f"當前語言設定: {language!r} " )
         self.current_menu_data = self.data_handler.load_menu_config(default_config)
         
         if self.current_menu_data:
@@ -168,6 +170,7 @@ class MenuBuilderController:
 
     def show_ui(self):
         log.info("顯示 Menubuilder UI。")
+        
         try:
             self.ui.show()
         except Exception as e:
@@ -179,7 +182,7 @@ class MenuBuilderController:
         if self.current_selected_script_path:
             start_dir = os.path.dirname(self.current_selected_script_path)
 
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "選擇 Python 腳本", start_dir, "Python Files (*.py)")
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, tr('controller_select_script_title'), start_dir, "Python Files (*.py)")
         
         if not file_path:
             self.current_selected_script_path = None
@@ -269,7 +272,7 @@ class MenuBuilderController:
         # --- 第三步：執行最終檢查 ---
         if proposed_label.lower() in sibling_names:
             log.warning(f"名稱衝突：在 '{proposed_path}' 路徑下已存在名為 '{proposed_label}' 的項目或資料夾。")
-            QtWidgets.QMessageBox.warning(self.ui, "命名衝突", f"在路徑 '{proposed_path}' 下，已經存在一個同名的項目或子資料夾了。")
+            QtWidgets.QMessageBox.warning(self.ui, tr('controller_warn_name_conflict_title'), tr('controller_warn_name_conflict_body', label=proposed_label, path=proposed_path))
             return True
 
         return False
@@ -315,13 +318,13 @@ class MenuBuilderController:
         self.menu_generator.clear_existing_menus()
         self.menu_generator.build_from_config(self.current_menu_data)
         
-        cmds.inViewMessage(amg='<hl>菜單已成功生成/刷新！</hl>', pos='midCenter', fade=True)
+        cmds.inViewMessage(amg=f"<hl>{tr('controller_info_build_success')}</hl>", pos='midCenter', fade=True)
 
     def on_file_open(self):
         """處理 '開啟' 動作。"""
         log.debug("處理 '開啟' 動作...")
         default_dir = str(self.data_handler.MENUITEMS_DIR)
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "開啟菜單設定檔", default_dir, "JSON Files (*.json)")
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, tr('controller_open_config_title'), default_dir, "JSON Files (*.json)")
         
         if not file_path:
             log.debug("使用者取消了檔案選擇。")
@@ -343,7 +346,7 @@ class MenuBuilderController:
         """處理 '合併' 動作。"""
         log.debug("處理 '合併' 動作...")
         default_dir = str(self.data_handler.MENUITEMS_DIR)
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, "選擇要合併的設定檔", default_dir, "JSON Files (*.json)")
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, tr('controller_merge_config_title'), default_dir, "JSON Files (*.json)")
 
         if not file_path:
             return
@@ -361,7 +364,7 @@ class MenuBuilderController:
         """處理 '另存為' 動作。"""
         log.debug("處理 '另存為' 動作...")
         default_dir = str(self.data_handler.MENUITEMS_DIR)
-        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, "另存為菜單設定檔", default_dir, "JSON Files (*.json)")
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, tr('controller_save_as_config_title'), default_dir, "JSON Files (*.json)")
 
         if not file_path:
             return
@@ -398,6 +401,7 @@ class MenuBuilderController:
         edited_data = self.ui.get_attributes_from_fields()
         if not edited_data.menu_label:
             log.warning("請確保'菜單標籤'欄位不為空。")
+            QtWidgets.QMessageBox.warning(self.ui, tr('attribute_editor_group'), tr('controller_warn_label_empty'))
             return
 
         item_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole) if self.current_edit_item else None
@@ -476,7 +480,7 @@ class MenuBuilderController:
 
         if is_folder:
             item_path = self.ui.get_path_for_item(item)
-            confirm_message = f"您確定要刪除資料夾 '{item_path}' 及其下的所有內容嗎？\n此操作無法復原。"
+            confirm_message = tr('controller_confirm_delete_folder', path=item_path)
             # 查找所有需要刪除的子項目
             items_to_process_for_delete = [
                 data for data in self.current_menu_data 
@@ -484,12 +488,12 @@ class MenuBuilderController:
             ]
         else: # 功能項、選項框、父物件
             if is_parent_item:
-                confirm_message = f"您確定要刪除 '{item.text(0)}' 及其下方的選項框嗎？\n此操作無法復原。"
+                confirm_message = tr('controller_confirm_delete_parent_with_option_box', name=item.text(0))
                 items_to_process_for_delete.append(item_data)
                 if option_box_data_to_delete:
                     items_to_process_for_delete.append(option_box_data_to_delete)
             elif item_data:
-                confirm_message = f"您確定要刪除 '{item.text(0)}' 嗎？"
+                confirm_message = tr('controller_confirm_delete_item', name=item.text(0))
                 items_to_process_for_delete.append(item_data)
         
         if not items_to_process_for_delete and not is_folder:
@@ -499,7 +503,7 @@ class MenuBuilderController:
 
         if confirm_message:
             reply = QtWidgets.QMessageBox.question(
-                self.ui, '確認刪除', confirm_message,
+                self.ui, tr('controller_confirm_delete_title'), confirm_message,
                 QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No
             )
             if reply == QtWidgets.QMessageBox.No:
@@ -578,7 +582,7 @@ class MenuBuilderController:
         """處理'瀏覽自訂圖示'按鈕的點擊事件。"""
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.ui, 
-            "選擇自訂圖示檔案", 
+            tr('controller_select_custom_icon_title'), 
             "", 
             "Image Files (*.png *.svg *.jpg *.bmp)"
         )
@@ -595,7 +599,6 @@ class MenuBuilderController:
         """一個新的輔助函式，用來通知UI更新標題。"""
         self.ui.update_tree_view_title(self.current_config_name)
 
-    @block_ui_signals('menu_tree_view')
     @block_ui_signals('menu_tree_view')
     def _refresh_editor_panel(self):
         """
@@ -618,7 +621,7 @@ class MenuBuilderController:
                 # 在 finally 中會恢復信號，所以這裡可以直接 return
                 return
 
-            self.ui.add_update_button.setText("更新 | 結束編輯 項目")
+            self.ui.add_update_button.setText(tr('update_finish_editing_button'))
             self.ui.add_update_button.setStyleSheet("background-color: #446688;")
             self.ui.set_attributes_to_fields(item_data)
         else:
@@ -628,7 +631,7 @@ class MenuBuilderController:
             self.ui.menu_tree_view.setEnabled(True)
             log.debug("已退出編輯模式，恢復樹狀圖。")
             
-            self.ui.add_update_button.setText("新增至結構")
+            self.ui.add_update_button.setText(tr('add_to_structure_button'))
             #highlight_color = QtGui.QColor("#446A3B")
             self.ui.add_update_button.setStyleSheet("")
             self.ui.python_radio.setChecked(True)
@@ -677,16 +680,17 @@ class MenuBuilderController:
         """
         顯示一個「關於」對話框。
         """
+        about_text = f"""
+            <b>{tr('about_dialog_main_header')}</b>
+            <p>{tr('about_dialog_version')} {__version__}</p>
+            <p>{tr('about_dialog_description')}</p>
+            <p>{tr('about_dialog_author')} <i>{__author__}</i></p>
+            <p>{tr('about_dialog_credits')}</p>
+            """
         QtWidgets.QMessageBox.about(
             self.ui,
-            "關於 Menubuilder",
-            f"""
-            <b>Menubuilder for Maya</b>
-            <p>Version {__version__}</p>
-            <p>一個視覺化的 Maya 菜單編輯與管理工具。</p>
-            <p>開發者: <i>{__author__}</i></p>
-            <p>此工具在 AI Assistant 的協作下完成開發。</p>
-            """
+            tr('about_dialog_title'),
+            about_text
         )
 
     def on_view_on_github(self):
@@ -738,7 +742,7 @@ class MenuBuilderController:
 
         if not code_to_run:
             log.warning("指令為空，沒有可測試的內容。")
-            cmds.warning("Command is empty. Nothing to test.")
+            cmds.warning(tr('controller_warn_test_run_empty'))
             return
 
         # --- 以下完全是您原型中的除錯輸出邏輯 ---
@@ -776,12 +780,12 @@ class MenuBuilderController:
         if success:
 
             print("\n\nExecuted successfully.")
-            cmds.inViewMessage(amg='<hl>測試執行成功！</hl>', pos='midCenter', fade=True)
+            cmds.inViewMessage(amg=f"<hl>{tr('controller_info_test_run_success')}</hl>", pos='midCenter', fade=True)
         else:
             print("Execution failed!")
             print(error_info)
             # 使用 Maya 的 warning 彈出一個更明顯的錯誤提示
-            cmds.warning(f"測試執行失敗: {error_info}")
+            cmds.warning(f"{tr('controller_warn_test_run_failed')} {error_info}")
         
         print("--- Test Run Finished ---")
         print("="*50 + "\n")

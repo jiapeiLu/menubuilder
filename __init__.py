@@ -32,6 +32,11 @@ def reload_all():
     if instance:
         try:
             log.info("正在清理舊的 Menubuilder UI 實例...")
+            
+            # (*** 修改點 ***)
+            # 在關閉和刪除前，先呼叫自訂的清理函式移除事件過濾器
+            instance.ui.clean_up() 
+            
             # 確保UI視窗被正確關閉和刪除
             instance.ui.close()
             instance.ui.deleteLater()
