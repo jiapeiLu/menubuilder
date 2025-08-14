@@ -124,6 +124,7 @@ class MenuBuilderController:
         log.info("顯示 Menubuilder UI。")
         
         try:
+            self.ui.center_on_screen()
             self.ui.show()
         except Exception as e:
             log.error(f"顯示UI時發生錯誤: {e}", exc_info=True)

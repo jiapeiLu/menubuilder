@@ -307,6 +307,24 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         log.info("UI 自動化重新翻譯完成。")
         
+    def center_on_screen(self):
+        """
+        計算螢幕中心點，並將視窗移動至該處。
+        """
+        # 獲取主螢幕的可用幾何區域 (不包含任務欄等)
+        screen_geometry = QtWidgets.QApplication.primaryScreen().availableGeometry()
+        
+        # 獲取視窗自身的尺寸
+        window_geometry = self.frameGeometry()
+        
+        # 計算中心點
+        center_point = screen_geometry.center()
+        
+        # 將視窗的左上角移動到 (中心點 - 視窗尺寸的一半) 的位置
+        window_geometry.moveCenter(center_point)
+        self.move(window_geometry.topLeft())
+
+
     def populate_menu_tree(self, items: List[MenuItemData]):
         """
         根據提供的資料列表，完整地重建左側的樹狀視圖。
