@@ -66,12 +66,14 @@ class MenuBuilderController:
         self.editor_handler = EditorPanelHandler(self)
         self.file_io_handler = FileIOHandler(self)
 
+        # 5. 在所有元件都已創建並連接好之後，才執行第一次 UI 翻譯和刷新
+        self.ui.retranslate_ui()
+
         # 4. 執行所有後續的初始化步驟
         self._load_initial_data()
         self._connect_signals()
 
-        # 5. 在所有元件都已創建並連接好之後，才執行第一次 UI 翻譯和刷新
-        self.ui.retranslate_ui()
+
         
         log.info("MenuBuilderController 初始化完成。")
 
