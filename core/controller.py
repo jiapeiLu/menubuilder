@@ -24,7 +24,7 @@ from .setting_reader import current_setting
 from .ui import MenuBuilderUI
 from .script_parser import ScriptParser
 from .menu_generator import MenuGenerator
-from . import translator 
+from .translator import tr
 from .decorators import preserve_ui_state, block_ui_signals
 
 from .handlers.data_handler import DataHandler,MenuItemData
@@ -134,7 +134,7 @@ class MenuBuilderController:
         if self.current_selected_script_path:
             start_dir = os.path.dirname(self.current_selected_script_path)
 
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, translator.tr('controller_select_script_title'), start_dir, "Python Files (*.py)")
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, tr('controller_select_script_title'), start_dir, "Python Files (*.py)")
         
         if not file_path:
             self.current_selected_script_path = None
@@ -224,7 +224,7 @@ class MenuBuilderController:
         # --- 第三步：執行最終檢查 ---
         if proposed_label.lower() in sibling_names:
             log.warning(f"名稱衝突：在 '{proposed_path}' 路徑下已存在名為 '{proposed_label}' 的項目或資料夾。")
-            QtWidgets.QMessageBox.warning(self.ui, translator.tr('controller_warn_name_conflict_title'), translator.tr('controller_warn_name_conflict_body', label=proposed_label, path=proposed_path))
+            QtWidgets.QMessageBox.warning(self.ui, tr('controller_warn_name_conflict_title'), tr('controller_warn_name_conflict_body', label=proposed_label, path=proposed_path))
             return True
 
         return False
@@ -264,7 +264,7 @@ class MenuBuilderController:
         self.menu_generator.clear_existing_menus()
         self.menu_generator.build_from_config(self.current_menu_data)
         
-        cmds.inViewMessage(amg=f"<hl>{translator.tr('controller_info_build_success')}</hl>", pos='midCenter', fade=True)
+        cmds.inViewMessage(amg=f"<hl>{tr('controller_info_build_success')}</hl>", pos='midCenter', fade=True)
 
     @preserve_ui_state
     def on_add_item_clicked(self):
@@ -274,12 +274,12 @@ class MenuBuilderController:
         edited_data = self.ui.get_attributes_from_fields()
         if not edited_data.menu_label:
             log.warning("請確保'菜單標籤'欄位不為空。")
-            QtWidgets.QMessageBox.warning(self.ui, translator.tr('attribute_editor_group'), translator.tr('controller_warn_label_empty'))
+            QtWidgets.QMessageBox.warning(self.ui, tr('attribute_editor_group'), tr('controller_warn_label_empty'))
             return
         
         if not edited_data.sub_menu_path:
             log.warning("請確保'菜單路徑'欄位不為空。")
-            QtWidgets.QMessageBox.warning(self.ui, translator.tr('attribute_editor_group'), translator.tr('controller_warn_path_empty'))
+            QtWidgets.QMessageBox.warning(self.ui, tr('attribute_editor_group'), tr('controller_warn_path_empty'))
             return
 
         item_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole) if self.current_edit_item else None
@@ -312,7 +312,7 @@ class MenuBuilderController:
         """處理'瀏覽自訂圖示'按鈕的點擊事件。"""
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
             self.ui, 
-            translator.tr('controller_select_custom_icon_title'), 
+            tr('controller_select_custom_icon_title'), 
             "", 
             "Image Files (*.png *.svg *.jpg *.bmp)"
         )
@@ -347,7 +347,7 @@ class MenuBuilderController:
                 # 在 finally 中會恢復信號，所以這裡可以直接 return
                 return
 
-            self.ui.add_update_button.setText(translator.tr('update_finish_editing_button'))
+            self.ui.add_update_button.setText(tr('update_finish_editing_button'))
             self.ui.add_update_button.setStyleSheet("background-color: #446688;")
             self.ui.set_attributes_to_fields(item_data)
         else:
@@ -357,7 +357,7 @@ class MenuBuilderController:
             self.ui.menu_tree_view.setEnabled(True)
             log.debug("已退出編輯模式，恢復樹狀圖。")
             
-            self.ui.add_update_button.setText(translator.tr('add_to_structure_button'))
+            self.ui.add_update_button.setText(tr('add_to_structure_button'))
             #highlight_color = QtGui.QColor("#446A3B")
             self.ui.add_update_button.setStyleSheet("")
             self.ui.python_radio.setChecked(True)
@@ -372,15 +372,15 @@ class MenuBuilderController:
         顯示一個「關於」對話框。
         """
         about_text = f"""
-            <b>{translator.tr('about_dialog_main_header')}</b>
-            <p>{translator.tr('about_dialog_version')} {__version__}</p>
-            <p>{translator.tr('about_dialog_description')}</p>
-            <p>{translator.tr('about_dialog_author')} <i>{__author__}</i></p>
-            <p>{translator.tr('about_dialog_credits')}</p>
+            <b>{tr('about_dialog_main_header')}</b>
+            <p>{tr('about_dialog_version')} {__version__}</p>
+            <p>{tr('about_dialog_description')}</p>
+            <p>{tr('about_dialog_author')} <i>{__author__}</i></p>
+            <p>{tr('about_dialog_credits')}</p>
             """
         QtWidgets.QMessageBox.about(
             self.ui,
-            translator.tr('about_dialog_title'),
+            tr('about_dialog_title'),
             about_text
         )
 

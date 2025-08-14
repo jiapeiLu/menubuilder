@@ -73,10 +73,13 @@ class SettingsHandler:
         setting_reader.current_setting['language'] = new_lang
         setting_reader.save_setting(setting_reader.current_setting)
         
-        from .. import translator
-        translator.tr = translator.initialize_translator()
+        from ..translator import tr_instance , tr
+        #print('settings-tr_instance',id(tr_instance))
+        #print('settings-tr_instance.tr',id(tr_instance.tr))
+        #print('settings-tr',id(tr))
+        tr_instance.set_language(new_lang)
         self.ui.retranslate_ui()
-
+        
     def on_log_level_changed(self, action):
         """當日誌等級選項被點擊時觸發。"""
         new_level = action.data()

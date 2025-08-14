@@ -4,7 +4,7 @@ from PySide2 import QtWidgets
 from pathlib import Path
 
 from ..logger import log
-from .. import translator
+from ..translator import tr
  
 # 為了型別提示 (Type Hinting) 而導入
 from typing import TYPE_CHECKING
@@ -47,7 +47,7 @@ class FileIOHandler:
     def on_file_open(self):
         """處理 '開啟' 動作。"""
         default_dir = str(self.data_handler.MENUITEMS_DIR)
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, translator.tr('controller_open_config_title'), default_dir, "JSON Files (*.json)")
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, tr('controller_open_config_title'), default_dir, "JSON Files (*.json)")
         
         if not file_path:
             return
@@ -65,7 +65,7 @@ class FileIOHandler:
     def on_file_merge(self):
         """處理 '合併' 動作。"""
         default_dir = str(self.data_handler.MENUITEMS_DIR)
-        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, translator.tr('controller_merge_config_title'), default_dir, "JSON Files (*.json)")
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self.ui, tr('controller_merge_config_title'), default_dir, "JSON Files (*.json)")
 
         if not file_path:
             return
@@ -81,7 +81,7 @@ class FileIOHandler:
     def on_file_save_as(self):
         """處理 '另存為' 動作。"""
         default_dir = str(self.data_handler.MENUITEMS_DIR)
-        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, translator.tr('controller_save_as_config_title'), default_dir, "JSON Files (*.json)")
+        file_path, _ = QtWidgets.QFileDialog.getSaveFileName(self.ui, tr('controller_save_as_config_title'), default_dir, "JSON Files (*.json)")
 
         if not file_path:
             return

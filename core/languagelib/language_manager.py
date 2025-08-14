@@ -1,9 +1,17 @@
 # menubuilder/core/languagelib/language_manager.py
 
+from .. import setting_reader
+from . import language
+import importlib
+
 class LanguageManager:
     def __init__(self, lang='en_us', languages=None):
-        self._current_lang = lang
-        self._languages = languages if languages else {}
+        # 在初始化時，直接從 setting_reader 獲取語言設定
+        importlib.reload(setting_reader)
+        importlib.reload(language)
+        
+        self._current_lang = setting_reader.current_setting.get('language', 'en_us')
+        self._languages = language.LANG
 
     def set_language(self, lang):
         self._current_lang = lang
@@ -13,8 +21,6 @@ class LanguageManager:
         根據 key 獲取翻譯字串，並可選地格式化。
         如果找不到翻譯，則直接返回 key 本身。
         """
-        # 預設值為 key 本身，確保即使翻譯缺失，UI 也能顯示一個有意義的文字
-        default_text = key
         
         # 嘗試獲取英文原文作為第二層預設值
         english_text = self._languages.get(key, {}).get('en_us', key)
