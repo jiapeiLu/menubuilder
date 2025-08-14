@@ -229,14 +229,14 @@ LANG = {
         'ja_jp': 'この項目はオプションボックスで、\n上のメニュー項目に属します。'
     },
     'context_unset_option_box': {
-        'en_us': 'Unset as Option Box',
-        'zh_tw': '取消選項框',
-        'ja_jp': 'オプションボックスを解除'
+        'en_us': ' □ Unset as Option Box',
+        'zh_tw': ' □ 取消選項框',
+        'ja_jp': ' □ オプションボックスを解除'
     },
     'context_set_option_box': {
-        'en_us': 'Set as Option Box',
-        'zh_tw': '設為選項框',
-        'ja_jp': 'オプションボックスに設定'
+        'en_us': ' □ Set as Option Box',
+        'zh_tw': ' □ 設為選項框',
+        'ja_jp': ' □ オプションボックスに設定'
     },
     'context_add_item': {
         'en_us': 'Add Item...',
@@ -259,9 +259,9 @@ LANG = {
         'ja_jp': '削除...'
     },
     'context_delete_parent_with_option_box': {
-        'en_us': 'Delete Item and Option Box...',
-        'zh_tw': '刪除主項與選項框...',
-        'ja_jp': '項目とオプションボックスを削除...'
+        'en_us': 'Delete Item and □ Option Box...',
+        'zh_tw': '刪除主項與 □ 選項框...',
+        'ja_jp': '項目と □ オプションボックスを削除...'
     },
     'context_add_root': {
         'en_us': 'Add Root Item...',
