@@ -21,7 +21,7 @@ def build_menus_on_startup():
         # 從 menubuilder 的核心模組中導入必要的元件
         # 使用相對導入路徑，確保它在作為 menubuilder 套件一部分時能正常工作
         from .core.setting_reader import current_setting
-        from .core.data_handler import DataHandler
+        from .core.handlers.data_handler import DataHandler
         from .core.menu_generator import MenuGenerator
 
         # 1. 讀取設定，找出預設要載入的菜單設定檔

@@ -1,7 +1,17 @@
 {
-  "menuitems": "TempBar",
-  "log_modes": ["DEBUG", "INFO", "WARNING", "ERROR","CRITICAL"],
-  "log_level": "DEBUG" ,
-  "languages_modes":["zh_tw","en_us","ja_jp"],
-  "language": "zh_tw"
+    "menuitems": "TempBar",
+    "log_modes": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+    ],
+    "log_level": "DEBUG",
+    "languages_modes": [
+        "zh_tw",
+        "en_us",
+        "ja_jp"
+    ],
+    "language": "zh_tw"
 }

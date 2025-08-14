@@ -14,7 +14,7 @@ LANG = {
     # ======================================================================
     # UI - Main Window (ui.py)
     # ======================================================================
-    'app_title': {
+    'window_title': {
         'en_us': 'Menu Builder',
         'zh_tw': '菜單建立工具',
         'ja_jp': 'メニュービルダー'
@@ -53,16 +53,6 @@ LANG = {
         'en_us': 'Type:',
         'zh_tw': '指令類型：',
         'ja_jp': 'タイプ：'
-    },
-    'python_radio': {
-        'en_us': 'Python',
-        'zh_tw': 'Python',
-        'ja_jp': 'Python'
-    },
-    'mel_radio': {
-        'en_us': 'MEL',
-        'zh_tw': 'MEL',
-        'ja_jp': 'MEL'
     },
     'command_input_placeholder': {
         'en_us': 'Please enter the command here, then select the corresponding Python or MEL language...',
@@ -188,6 +178,26 @@ LANG = {
         'zh_tw': '離開(&X)',
         'ja_jp': '終了(&X)'
     },
+    'settings_menu': {
+        'en_us': 'Settings',
+        'zh_tw': '設定',
+        'ja_jp': '設定'
+    },
+    'language_action': {
+        'en_us': 'language',
+        'zh_tw': '語言',
+        'ja_jp': '言語'
+    },    
+    'log_level': {
+        'en_us': 'Log Level',
+        'zh_tw': '日誌等級',
+        'ja_jp': 'ログレベル'
+    },  
+    'default_menu_on_startup': {
+        'en_us': 'Default Menu',
+        'zh_tw': '預設菜單',
+        'ja_jp': 'デフォルトメニュー'
+    },     
     'help_menu': {
         'en_us': '&Help',
         'zh_tw': '幫助(&H)',
@@ -209,13 +219,9 @@ LANG = {
     # ======================================================================
     'divider_text': {
         'en_us': '──────────',
-        'zh_tw': '──────────',
-        'ja_jp': '──────────'
     },
     'option_box_prefix': {
         'en_us': '(□) {label}',
-        'zh_tw': '(□) {label}',
-        'ja_jp': '(□) {label}'
     },
     'option_box_tooltip': {
         'en_us': 'This item is an Option Box,\nattached to the menu item above it.',

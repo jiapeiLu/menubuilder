@@ -1,3 +1,4 @@
+#menubuilder/core/handlers/data_handler.py
 """
 Menubuilder - Data Handler Module (Model)
 
@@ -11,8 +12,8 @@ Menubuilder - Data Handler Module (Model)
 import json
 from pathlib import Path
 from typing import List
-from .dto import MenuItemData
-from .logger import log
+from ..dto import MenuItemData
+from ..logger import log
 
 class DataHandler:
     """
@@ -23,7 +24,7 @@ class DataHandler:
     """
     
     # 動態獲取 menuitems 資料夾的路徑
-    MENUITEMS_DIR = Path(__file__).parent.parent / "menuitems"
+    MENUITEMS_DIR = Path(__file__).parent.parent.parent / "menuitems"
 
     def load_menu_config(self, config_name: str) -> List[MenuItemData]:
         """

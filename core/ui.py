@@ -16,11 +16,16 @@ from .dto import MenuItemData
 from .logger import log
 import maya.cmds as cmds
 import functools
-from .translator import tr
+from . import translator
 from shiboken2 import wrapInstance
 import maya.OpenMayaUI as omui
 
 from menubuilder import __version__
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .controller import MenuBuilderController
+
 
 def get_maya_main_window():
     """
@@ -61,18 +66,18 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         Args:
             controller (MenuBuilderController): 控制器物件的實例，用於信號連接。
         """
-        if parent is None:
-            parent = get_maya_main_window()
+        if parent is None: parent = get_maya_main_window()
         super(MenuBuilderUI, self).__init__(parent)
-
-        self.controller = controller
-        self.setWindowTitle(f"{tr('app_title')} v{__version__}")
         self.setGeometry(300, 300, 800, 700)
-        QtWidgets.QApplication.instance().installEventFilter(self)
-        # 儲存 QTreeWidgetItems 以便查找
-        self.item_map = {}
 
+        self.controller:MenuBuilderController = controller
+        self.item_map = {}# 儲存 QTreeWidgetItems 以便查找
+
+        self._retranslation_list = []
         self._init_ui()
+        #self.retranslate_ui()
+
+        QtWidgets.QApplication.instance().installEventFilter(self)
 
     def _init_ui(self):
         """初始化UI元件和佈局。"""
@@ -86,10 +91,12 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         left_container_widget = QtWidgets.QWidget()
         left_layout = QtWidgets.QVBoxLayout(left_container_widget)
 
-        self.left_label = QtWidgets.QLabel(tr('menu_config_title'))
+        self.left_label = QtWidgets.QLabel()
         self.menu_tree_view = DraggableTreeWidget()
-        self.menu_tree_view.setHeaderLabels([tr('menu_structure_header')])
         self.menu_tree_view.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self._retranslation_list.append((self.menu_tree_view.setHeaderLabels, "menu_structure_header", {'prop': 'header'}))
+        self._retranslation_list.append((self.left_label.setText, "menu_config_title", {}))
+
 
         left_layout.addWidget(self.left_label)
         left_layout.addWidget(self.menu_tree_view)
@@ -101,14 +108,18 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         file_parse_widget = QtWidgets.QWidget()
         manual_input_widget = QtWidgets.QWidget()
 
-        self.input_tabs.addTab(file_parse_widget, tr('tab_parse_from_file'))
-        self.input_tabs.addTab(manual_input_widget, tr('tab_manual_input'))
+        self.input_tabs.addTab(file_parse_widget, translator.tr('tab_parse_from_file'))
+        self.input_tabs.addTab(manual_input_widget, translator.tr('tab_manual_input'))
+        self._retranslation_list.append((self.input_tabs.setTabText, "tab_parse_from_file", {'prop': 'tabtext', 'tab_index': 0}))
+        self._retranslation_list.append((self.input_tabs.setTabText, "tab_manual_input",  {'prop': 'tabtext', 'tab_index': 1}))
 
         file_parse_layout = QtWidgets.QVBoxLayout(file_parse_widget)
-        self.browse_button = QtWidgets.QPushButton(tr('browse_script_button'))
+        self.browse_button = QtWidgets.QPushButton()
         self.current_script_path_label = QtWidgets.QLineEdit()
         self.current_script_path_label.setReadOnly(True)
         self.current_script_path_label.setStyleSheet("background-color: #2E2E2E; border: none;")
+
+        self._retranslation_list.append((self.browse_button.setText, "browse_script_button", {}))
 
         self.function_list = QtWidgets.QListWidget()
         file_parse_layout.addWidget(self.browse_button)
@@ -120,8 +131,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         
         # --- [新增] 指令類型選擇 ---
         # -----------------------------------------------------------------
-        self.python_radio = QtWidgets.QRadioButton(tr('python_radio'))
-        self.mel_radio = QtWidgets.QRadioButton(tr('mel_radio'))
+        self.python_radio = QtWidgets.QRadioButton('Python')
+        self.mel_radio = QtWidgets.QRadioButton('MEL')
         self.python_radio.setChecked(True) # 預設選中 Python
         
         # 使用 QButtonGroup 確保互斥
@@ -130,35 +141,33 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.command_type_group.addButton(self.mel_radio)
 
         command_type_layout = QtWidgets.QHBoxLayout()
-        command_type_layout.addWidget(QtWidgets.QLabel(tr('command_type_label')))
+        self.command_type_label = QtWidgets.QLabel()
+        command_type_layout.addWidget(self.command_type_label)
         command_type_layout.addWidget(self.python_radio)
         command_type_layout.addWidget(self.mel_radio)
         command_type_layout.addStretch()
+
+        self._retranslation_list.append((self.command_type_label.setText, "command_type_label", {}))
         # -----------------------------------------------------------------
 
         self.manual_cmd_input = QtWidgets.QTextEdit()
-        self.manual_cmd_input.setPlaceholderText(tr('command_input_placeholder'))
-        self.test_run_button = QtWidgets.QPushButton(tr('test_run_button')) 
+        self.test_run_button = QtWidgets.QPushButton() 
+
+        self._retranslation_list.append((self.manual_cmd_input.setPlaceholderText, "command_input_placeholder", {}))
+        self._retranslation_list.append((self.test_run_button.setText, "test_run_button", {}))
 
         manual_input_layout.addLayout(command_type_layout) 
         manual_input_layout.addWidget(self.manual_cmd_input)
         manual_input_layout.addWidget(self.test_run_button) 
 
-        self.attribute_box = QtWidgets.QGroupBox(tr('attribute_editor_group'))
-        form_layout = QtWidgets.QFormLayout()
-
+        self.attribute_box = QtWidgets.QGroupBox()
+        self.form_layout = QtWidgets.QFormLayout()
         self.label_input = QtWidgets.QLineEdit()
         self.path_input = QtWidgets.QLineEdit()
-        self.path_input.setPlaceholderText(tr('path_placeholder'))
-        
         icon_path_layout = QtWidgets.QHBoxLayout()
         self.icon_input = QtWidgets.QLineEdit()
-        self.icon_input.setPlaceholderText(tr('icon_placeholder'))
-        
-        self.icon_browse_btn = QtWidgets.QPushButton(tr('custom_button'))
-        self.icon_browse_btn.setToolTip(tr('custom_icon_tooltip'))
-        self.icon_buildin_btn = QtWidgets.QPushButton(tr('builtin_button'))
-        self.icon_buildin_btn.setToolTip(tr('builtin_icon_tooltip'))
+        self.icon_browse_btn = QtWidgets.QPushButton()
+        self.icon_buildin_btn = QtWidgets.QPushButton()
 
         icon_path_layout.addWidget(self.icon_input)
         icon_path_layout.addWidget(self.icon_browse_btn)
@@ -168,20 +177,39 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.icon_preview.setFixedSize(32, 32)
         self.icon_preview.setStyleSheet("border: 1px solid #555; background-color: #333; border-radius: 4px;")
         self.icon_preview.setAlignment(QtCore.Qt.AlignCenter)
-        self.icon_preview.setText(tr('preview_none'))
         
+        self._retranslation_list.append((self.attribute_box.setTitle, "attribute_editor_group", {}))
+        self._retranslation_list.append((self.path_input.setPlaceholderText, "path_placeholder", {}))
+        self._retranslation_list.append((self.icon_input.setPlaceholderText, "icon_placeholder", {}))
+        self._retranslation_list.append((self.icon_browse_btn.setText, "custom_button", {}))
+        self._retranslation_list.append((self.icon_browse_btn.setToolTip, "custom_icon_tooltip", {}))
+        self._retranslation_list.append((self.icon_buildin_btn.setText, "builtin_button", {}))
+        self._retranslation_list.append((self.icon_buildin_btn.setToolTip, "builtin_icon_tooltip", {}))
+        self._retranslation_list.append((self.icon_preview.setText, "preview_none", {}))
+
         self.icon_input.textChanged.connect(self.update_icon_preview)
 
-        form_layout.addRow(tr('label_form'), self.label_input)
-        form_layout.addRow(tr('path_form'), self.path_input)
-        form_layout.addRow(tr('icon_form'), icon_path_layout)
-        form_layout.addRow(tr('preview_form'), self.icon_preview)
+        self.form_layout.addRow(translator.tr('label_form'), self.label_input)
+        self.form_layout.addRow(translator.tr('path_form'), self.path_input)
+        self.form_layout.addRow(translator.tr('icon_form'), icon_path_layout)
+        self.form_layout.addRow(translator.tr('preview_form'), self.icon_preview)
+        
+        self._retranslation_list.append((self.form_layout.itemAt(0, QtWidgets.QFormLayout.LabelRole).widget().setText, "label_form", {}))
+        self._retranslation_list.append((self.form_layout.itemAt(1, QtWidgets.QFormLayout.LabelRole).widget().setText, "path_form", {}))
+        self._retranslation_list.append((self.form_layout.itemAt(2, QtWidgets.QFormLayout.LabelRole).widget().setText, "icon_form", {}))
+        self._retranslation_list.append((self.form_layout.itemAt(3, QtWidgets.QFormLayout.LabelRole).widget().setText, "preview_form", {}))
 
-        self.attribute_box.setLayout(form_layout)
+        self.attribute_box.setLayout(self.form_layout)
        
-        self.add_update_button = QtWidgets.QPushButton(tr('add_to_structure_button'))
-        self.save_button = QtWidgets.QPushButton(tr('save_config_button'))
-        self.build_menus_button = QtWidgets.QPushButton(tr('build_menus_button'))
+        self.add_update_button = QtWidgets.QPushButton()
+        self.save_button = QtWidgets.QPushButton()
+        self.build_menus_button = QtWidgets.QPushButton()
+
+        # 注意：add_update_button 的文字是動態的，由 controller._refresh_editor_panel 處理
+        # 因此它「不需要」被註冊到這個靜態列表中
+        self._retranslation_list.append((self.save_button.setText, "save_config_button", {}))
+        self._retranslation_list.append((self.build_menus_button.setText, "build_menus_button", {}))
+
 
         right_layout.addWidget(self.input_tabs)
         right_layout.addWidget(self.attribute_box)
@@ -196,21 +224,85 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         splitter.setSizes([350, 450]) 
 
         menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu(tr('file_menu'))
+        self.file_menu = menu_bar.addMenu(translator.tr('file_menu'))
 
-        self.open_action = file_menu.addAction(tr('open_action'))
-        self.merge_action = file_menu.addAction(tr('merge_action'))
-        self.save_action = file_menu.addAction(tr('save_action'))
-        self.save_as_action = file_menu.addAction(tr('save_as_action'))
-        
-        file_menu.addSeparator()
-        
-        self.exit_action = file_menu.addAction(tr('exit_action'))
+        self.open_action = self.file_menu.addAction(translator.tr('open_action'))
+        self.merge_action = self.file_menu.addAction(translator.tr('merge_action'))
+        self.save_action = self.file_menu.addAction(translator.tr('save_action'))
+        self.save_as_action = self.file_menu.addAction(translator.tr('save_as_action'))
+        self.file_menu.addSeparator()
+        self.exit_action = self.file_menu.addAction(translator.tr('exit_action'))
 
-        help_menu = menu_bar.addMenu(tr('help_menu'))
+
+        self.settings_menu = menu_bar.addMenu(translator.tr("settings_menu"))
+
+        self.language_menu = self.settings_menu.addMenu(translator.tr("language_action"))
+        self.language_action_group = QtWidgets.QActionGroup(self)
+        self.language_action_group.setExclusive(True)
+
+        self.log_level_menu = self.settings_menu.addMenu(translator.tr("log_level"))
+        self.log_level_action_group = QtWidgets.QActionGroup(self)
+        self.log_level_action_group.setExclusive(True)
         
-        self.about_action = help_menu.addAction(tr('about_action'))
-        self.github_action = help_menu.addAction(tr('github_action'))
+        self.default_menu_menu = self.settings_menu.addMenu(translator.tr('default_menu_on_startup'))
+        self.default_menu_action_group = QtWidgets.QActionGroup(self)
+        self.default_menu_action_group.setExclusive(True)
+
+
+        self.help_menu = menu_bar.addMenu(translator.tr('help_menu'))
+        
+        self.about_action = self.help_menu.addAction(translator.tr('about_action'))
+        self.github_action = self.help_menu.addAction(translator.tr('github_action'))
+
+        self._retranslation_list.append((self.file_menu.setTitle, "file_menu", {}))
+        self._retranslation_list.append((self.open_action.setText, "open_action", {}))
+        self._retranslation_list.append((self.merge_action.setText, "merge_action", {}))
+        self._retranslation_list.append((self.save_action.setText, "save_action", {}))
+        self._retranslation_list.append((self.save_as_action.setText, "save_as_action", {}))
+        self._retranslation_list.append((self.exit_action.setText, "exit_action", {}))
+        
+        self._retranslation_list.append((self.settings_menu.setTitle, "settings_menu", {}))
+        self._retranslation_list.append((self.language_menu.setTitle, "language_action", {}))
+        self._retranslation_list.append((self.log_level_menu.setTitle, "log_level", {}))
+        self._retranslation_list.append((self.default_menu_menu.setTitle, "default_menu_on_startup", {}))
+
+        self._retranslation_list.append((self.help_menu.setTitle, "help_menu", {}))
+        self._retranslation_list.append((self.about_action.setText, "about_action", {}))
+        self._retranslation_list.append((self.github_action.setText, "github_action", {}))
+
+
+    def retranslate_ui(self):
+        """
+        [修正版] 遍歷已註冊的 UI 元件列表，並根據註冊的選項，
+        正確地處理不同參數數量的更新函式。
+        """
+        log.info("正在自動化重新翻譯 UI...")
+
+        # --- 核心自動化邏輯 ---
+        for setter_method, key, options in self._retranslation_list:
+            text = translator.tr(key)
+            prop = options.get('prop')
+
+            # 使用 if/elif/else 結構來處理不同的呼叫方式
+            if prop == 'tabtext':
+                # 特殊情況：setTabText 需要 index 和 text 兩個參數
+                setter_method(options.get('tab_index', -1), text)
+            elif prop == 'header':
+                # 特殊情況：setHeaderLabels 需要一個 list
+                setter_method([text])
+            else:
+                # [修正] 預設情況：確保 text 參數被正確傳遞
+                # 這將正確處理 setText, setTitle, setPlaceholderText, setToolTip 等
+                setter_method(text)
+
+        # --- 處理少數無法簡單註冊的動態文字 ---
+        self.setWindowTitle(f"{translator.tr('window_title')} v{__version__}")
+        if self.controller: # 增加保護，確保 controller 已存在
+            self.controller._refresh_editor_panel()
+            self.update_tree_view_title(self.controller.current_config_name)
+            self.populate_menu_tree(self.controller.current_menu_data)
+
+        log.info("UI 自動化重新翻譯完成。")
         
     def populate_menu_tree(self, items: List[MenuItemData]):
         """
@@ -248,9 +340,9 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             display_label = item_data.menu_label
             
             if item_data.is_divider:
-                display_label = tr('divider_text')
+                display_label = translator.tr('divider_text')
             elif item_data.is_option_box:
-                display_label = tr('option_box_prefix', label=item_data.menu_label)
+                display_label = translator.tr('option_box_prefix', label=item_data.menu_label)
 
             menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [display_label])
             menu_qitem.setData(0, QtCore.Qt.UserRole, item_data)
@@ -265,7 +357,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 menu_qitem.setFlags(flags)
 
                 # 以下的視覺樣式設定不變
-                menu_qitem.setToolTip(0, tr('option_box_tooltip'))
+                menu_qitem.setToolTip(0, translator.tr('option_box_tooltip'))
                 font = menu_qitem.font(0)
                 font.setItalic(True)
                 menu_qitem.setFont(0, font)
@@ -417,10 +509,10 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             if item_data and not item_data.is_divider: # 只有功能項可以被操作為選項框
                 action_toggle_option_box = QtWidgets.QAction()
                 if item_data.is_option_box:
-                    action_toggle_option_box.setText(tr('context_unset_option_box'))
+                    action_toggle_option_box.setText(translator.tr('context_unset_option_box'))
                     action_toggle_option_box.setEnabled(True)
                 else:
-                    action_toggle_option_box.setText(tr('context_set_option_box'))
+                    action_toggle_option_box.setText(translator.tr('context_set_option_box'))
                     is_valid = True
                     if is_parent_item: is_valid = False
                     else:
@@ -430,11 +522,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                             data_above = item_above.data(0, QtCore.Qt.UserRole)
                             if not data_above or data_above.is_option_box: is_valid = False
                     action_toggle_option_box.setEnabled(is_valid)
-                action_toggle_option_box.triggered.connect(functools.partial(self.controller.on_context_toggle_option_box, item))
+                action_toggle_option_box.triggered.connect(functools.partial(self.controller.tree_handler.on_context_toggle_option_box, item))
                 menu.addAction(action_toggle_option_box)
 
-            action_add_under = menu.addAction(tr('context_add_item'))
-            action_add_separator = menu.addAction(tr('context_add_separator'))
+            action_add_under = menu.addAction(translator.tr('context_add_item'))
+            action_add_separator = menu.addAction(translator.tr('context_add_separator'))
 
             # 父物件下方不能插入任何東西
             if is_parent_item:
@@ -447,20 +539,20 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 action_add_separator.setEnabled(False)
 
             # 將路徑資訊傳遞給新增操作
-            action_add_under.triggered.connect(functools.partial(self.controller.on_context_add_under, path_for_actions))
-            action_add_separator.triggered.connect(functools.partial(self.controller.on_context_add_separator, item))
+            action_add_under.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_under, path_for_actions))
+            action_add_separator.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_separator, item))
             menu.addSeparator()
 
             # --- 輔助與破壞性群組 ---
             if not (item_data and item_data.is_divider): # 分隔線沒有路徑可傳送
-                menu.addAction(tr('context_send_path', path=path_for_actions),
-                               functools.partial(self.controller.on_context_send_path, path_for_actions))
+                menu.addAction(translator.tr('context_send_path', path=path_for_actions),
+                               functools.partial(self.controller.tree_handler.on_context_send_path, path_for_actions))
                 menu.addSeparator()
             
-            action_delete = menu.addAction(tr('context_delete'))
+            action_delete = menu.addAction(translator.tr('context_delete'))
             if is_parent_item:
-                action_delete.setText(tr('context_delete_parent_with_option_box'))
-            action_delete.triggered.connect(functools.partial(self.controller.on_context_delete, item))
+                action_delete.setText(translator.tr('context_delete_parent_with_option_box'))
+            action_delete.triggered.connect(functools.partial(self.controller.tree_handler.on_context_delete, item))
         else:
             # --- 情況三：點擊空白處 ---
             pass
@@ -470,9 +562,9 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
     def update_tree_view_title(self, filename: str):
         """更新左側樹狀視圖的標題以顯示當前檔名。"""
         if filename:
-            self.left_label.setText(tr('menu_config_title_with_file', filename=f"{filename}.json"))
+            self.left_label.setText(translator.tr('menu_config_title_with_file', filename=f"{filename}.json"))
         else:
-            self.left_label.setText(tr('menu_config_title'))
+            self.left_label.setText(translator.tr('menu_config_title'))
 
     def update_icon_preview(self, path: str):
         """
@@ -483,13 +575,13 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         """
         if not path:
             self.icon_preview.clear()
-            self.icon_preview.setText(tr('preview_none'))
+            self.icon_preview.setText(translator.tr('preview_none'))
             return
 
         icon = QtGui.QIcon(path)
         if icon.isNull():
             self.icon_preview.clear()
-            self.icon_preview.setText(tr('preview_invalid'))
+            self.icon_preview.setText(translator.tr('preview_invalid'))
         else:
             pixmap = icon.pixmap(32, 32)
             self.icon_preview.setPixmap(pixmap)
@@ -568,13 +660,13 @@ class IconBrowserDialog(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
         super(IconBrowserDialog, self).__init__(parent)
-        self.setWindowTitle(tr('icon_browser_title'))
+        self.setWindowTitle(translator.tr('icon_browser_title'))
         self.setGeometry(400, 400, 500, 600)
         
         main_layout = QtWidgets.QVBoxLayout(self)
         
         self.search_input = QtWidgets.QLineEdit()
-        self.search_input.setPlaceholderText(tr('icon_search_placeholder'))
+        self.search_input.setPlaceholderText(translator.tr('icon_search_placeholder'))
         self.search_input.textChanged.connect(self.filter_icons)
         
         self.icon_list_widget = QtWidgets.QListWidget()

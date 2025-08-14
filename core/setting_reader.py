@@ -9,7 +9,20 @@ Menubuilder - Settings Reader Module
 """
 import json
 from pathlib import Path
+
 setting_FILE = Path(__file__).parent.parent / "setting.json"
+
+def save_setting(data_to_save):
+    """將設定字典寫入到 setting.json 檔案中。"""
+    try:
+        with open(setting_FILE, 'w', encoding='utf-8') as f:
+            # indent=4 讓JSON檔案格式化，更易讀
+            json.dump(data_to_save, f, ensure_ascii=False, indent=4)
+        print(f"INFO: Settings successfully saved to {setting_FILE}")
+        return True
+    except Exception as e:
+        print(f"ERROR: An error occurred while saving settings: {e}")
+        return False
 
 def load_setting(setting_path = setting_FILE):
     """
@@ -19,15 +32,15 @@ def load_setting(setting_path = setting_FILE):
     default_setting = {
           "menuitems": "TempBar",
           "log_modes": ["DEBUG", "INFO", "WARNING", "ERROR","CRITICAL"],
-          "log_level": "DEBUG" ,
-          "languages_modes":["zh_tw","en_us"],
+          "log_level": "ERROR" ,
+          "languages_modes":["zh_tw","en_us","ja_jp"],
           "language": "en_us"
         }
 
     try:
         
         if not setting_path.exists():
-            logger.info("setting.json not found. Using default settings.")
+            print(f"INFO: {setting_path} not found. Using default settings.")
             return default_setting
 
         with open(setting_path, 'r', encoding='utf-8') as f:
@@ -38,11 +51,9 @@ def load_setting(setting_path = setting_FILE):
 
     except json.JSONDecodeError:
         print(f"ERROR: Failed to decode setting.json. File might be corrupted. Using default settings.")
-        #logger.error("Failed to decode setting.json. File might be corrupted. Using default settings.")
         return default_setting
     except Exception as e:
         print(f"ERROR: An unexpected error occurred while loading setting: {e}. Using default settings.")
-        #logger.error(f"An unexpected error occurred while loading setting: {e}. Using default settings.")
         return default_setting
     
 current_setting = load_setting()
