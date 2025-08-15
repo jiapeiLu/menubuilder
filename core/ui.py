@@ -17,7 +17,7 @@ from .logger import log
 import maya.cmds as cmds
 import functools
 #from . import translator
-from .translator import tr, tr_instance
+from .translator import tr
 from shiboken2 import wrapInstance
 import maya.OpenMayaUI as omui
 
@@ -163,7 +163,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.attribute_box = QtWidgets.QGroupBox()
         self.form_layout = QtWidgets.QFormLayout()
         self.label_input = QtWidgets.QLineEdit()
-        self.path_input = QtWidgets.QLineEdit()
+        self.path_input = QtWidgets.QComboBox()
+        self.path_input.setEditable(True)
         icon_path_layout = QtWidgets.QHBoxLayout()
         self.icon_input = QtWidgets.QLineEdit()
         self.icon_browse_btn = QtWidgets.QPushButton()
@@ -179,7 +180,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.icon_preview.setAlignment(QtCore.Qt.AlignCenter)
         
         self._retranslation_list.append((self.attribute_box.setTitle, "attribute_editor_group", {}))
-        self._retranslation_list.append((self.path_input.setPlaceholderText, "path_placeholder", {}))
         self._retranslation_list.append((self.icon_input.setPlaceholderText, "icon_placeholder", {}))
         self._retranslation_list.append((self.icon_browse_btn.setText, "custom_button", {}))
         self._retranslation_list.append((self.icon_browse_btn.setToolTip, "custom_icon_tooltip", {}))
@@ -238,6 +238,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.save_action = self.file_menu.addAction(tr('save_action'))
         self.save_as_action = self.file_menu.addAction(tr('save_as_action'))
         self.file_menu.addSeparator()
+        self.import_from_shelf_action = self.file_menu.addAction(tr('import_from_shelf_action'))
         self.exit_action = self.file_menu.addAction(tr('exit_action'))
 
 
@@ -266,6 +267,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self._retranslation_list.append((self.merge_action.setText, "merge_action", {}))
         self._retranslation_list.append((self.save_action.setText, "save_action", {}))
         self._retranslation_list.append((self.save_as_action.setText, "save_as_action", {}))
+        self._retranslation_list.append((self.import_from_shelf_action.setText, "import_from_shelf_action", {}))
         self._retranslation_list.append((self.exit_action.setText, "exit_action", {}))
         
         self._retranslation_list.append((self.settings_menu.setTitle, "settings_menu", {}))
@@ -415,7 +417,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         # 創建 DTO 物件並填充資料
         item_data = MenuItemData(
             menu_label=self.label_input.text(),
-            sub_menu_path=self.path_input.text(),
+            sub_menu_path=self.path_input.currentText(),
             icon_path=self.icon_input.text(),
             function_str=function_string,
             command_type=command_type # <-- [修改] 傳入指令類型
@@ -493,7 +495,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             return
 
         self.label_input.setText(data.menu_label)
-        self.path_input.setText(data.sub_menu_path)
+        self.path_input.setCurrentText(data.sub_menu_path)
         self.icon_input.setText(data.icon_path)
         
         # --- [修改] 根據資料設定指令類型 ---

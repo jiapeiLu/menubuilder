@@ -421,4 +421,30 @@ LANG = {
         'zh_tw': '測試執行失敗：',
         'ja_jp': 'テスト実行に失敗しました：'
     },
+    'import_from_shelf_action': {
+        'en_us': 'Import from Shelf...',
+        'zh_tw': '從 Shelf 匯入...',
+        'ja_jp': 'シェルフからインポート...'
+    },
+    'shelf_import_dialog_title': {
+        'en_us': 'Import from Shelf',
+        'zh_tw': '從 Shelf 匯入',
+        'ja_jp': 'シェルフからインポート'
+    },
+    'shelf_import_dialog_label': {
+        'en_us': 'Select the shelves you want to import items from:',
+        'zh_tw': '請選擇您想要從中匯入項目的 Shelf：',
+        'ja_jp': 'アイテムをインポートしたいシェルフを選択してください：'
+    },
+    'shelf_import_dialog_import_button': {
+        'en_us': 'Import',
+        'zh_tw': '匯入',
+        'ja_jp': 'インポート'
+    },
+    'shelf_import_dialog_cancel_button': {
+        'en_us': 'Cancel',
+        'zh_tw': '取消',
+        'ja_jp': 'キャンセル'
+    }
+
 }

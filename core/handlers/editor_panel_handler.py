@@ -106,7 +106,8 @@ class EditorPanelHandler:
             self.controller.current_menu_data.append(edited_data)
             log.info(f"新增菜單項: {edited_data.menu_label}")
         
-        self.ui.populate_menu_tree(self.controller.current_menu_data)
+        # [重構] 呼叫 Controller 的集中刷新函式
+        self.controller._refresh_ui_tree_and_paths()
         self.controller._refresh_editor_panel()
 
     def on_browse_icon_clicked(self):

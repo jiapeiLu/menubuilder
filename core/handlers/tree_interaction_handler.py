@@ -33,11 +33,11 @@ class TreeInteractionHandler:
         self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed)
         self.ui.menu_tree_view.drop_event_completed.connect(self.on_drop_event_completed)
         log.debug("TreeInteractionHandler signals connected.")
-        
+
     def _clear_editor_for_preview(self):
         """輔助函式，用於在預覽模式下清空屬性編輯器面板。"""
         self.ui.label_input.clear()
-        self.ui.path_input.clear()
+        self.ui.path_input.setCurrentText("")
         self.ui.icon_input.clear()
         self.ui.manual_cmd_input.clear()
         self.ui.function_list.clear()
@@ -100,7 +100,7 @@ class TreeInteractionHandler:
             self.controller.current_menu_data.insert(new_parent_index + 1, option_box_to_follow)
         
         # 4. 用完全修正後的、完美的資料列表，徹底重繪 UI。
-        self.ui.populate_menu_tree(self.controller.current_menu_data)
+        self.controller._refresh_ui_tree_and_paths(self.controller.current_menu_data)
         if self.controller.current_edit_item:
             self.controller._refresh_editor_panel()
     
@@ -140,7 +140,7 @@ class TreeInteractionHandler:
                 new_expansion_state.add(path)
         
         self.controller._sync_data_from_ui()
-        self.ui.populate_menu_tree(self.controller.current_menu_data)
+        self.controller._refresh_ui_tree_and_paths(self.controller.current_menu_data)
         self.ui.set_expansion_state(new_expansion_state)
 
     # --- 以下是處理右鍵選單的函式 ---
@@ -208,13 +208,13 @@ class TreeInteractionHandler:
             log.info(f"準備刪除 {len(items_to_process_for_delete)} 個項目...")
             self.controller.current_menu_data = [d for d in self.controller.current_menu_data if d not in items_to_process_for_delete]
         
-        self.ui.populate_menu_tree(self.controller.current_menu_data)
+        self.controller._refresh_ui_tree_and_paths(self.controller.current_menu_data)
 
     def on_context_add_under(self, parent_path: str):
         """在指定的父路徑下準備新增一個項目。"""
         log.debug(f"準備在 '{parent_path}' 下新增項目。")
         
-        self.ui.path_input.setText(parent_path)
+        self.ui.path_input.setCurrentText(parent_path)
         self.ui.label_input.clear()
         self.ui.manual_cmd_input.clear()
         
@@ -253,12 +253,12 @@ class TreeInteractionHandler:
         
         self.controller.current_menu_data.insert(insert_index, separator_data)
         
-        self.ui.populate_menu_tree(self.controller.current_menu_data)
+        self.controller._refresh_ui_tree_and_paths(self.controller.current_menu_data)
 
     def on_context_send_path(self, path: str):
         """接收來自右鍵選單的路徑，並更新到UI輸入框中。"""
         log.debug(f"從右鍵選單接收到路徑: {path}")
-        self.ui.path_input.setText(path)
+        self.ui.path_input.setCurrentText(path)
 
     @preserve_ui_state
     def on_context_toggle_option_box(self, item: QtWidgets.QTreeWidgetItem):
@@ -275,7 +275,7 @@ class TreeInteractionHandler:
         log.debug(f"項目 '{item_data.menu_label}' 的 is_option_box 狀態由右鍵選單變更為: {new_state}")
 
         # 刷新UI以顯示變更
-        self.ui.populate_menu_tree(self.controller.current_menu_data)
+        self.controller._refresh_ui_tree_and_paths(self.controller.current_menu_data)
 
         # 如果程式正處於編輯模式，則刷新編輯器以反映變更
         if self.controller.current_edit_item:

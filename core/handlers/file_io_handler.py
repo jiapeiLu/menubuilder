@@ -2,12 +2,14 @@
 
 from PySide2 import QtWidgets
 from pathlib import Path
+from maya import cmds, mel
 
 from ..logger import log
 from ..translator import tr
- 
+from ..dto import MenuItemData
+
 # 為了型別提示 (Type Hinting) 而導入
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 if TYPE_CHECKING:
     from ..controller import MenuBuilderController
     from ..ui import MenuBuilderUI
@@ -28,6 +30,7 @@ class FileIOHandler:
         self.ui.merge_action.triggered.connect(self.on_file_merge)
         self.ui.save_action.triggered.connect(self.on_save_config_clicked)
         self.ui.save_as_action.triggered.connect(self.on_file_save_as)
+        self.ui.import_from_shelf_action.triggered.connect(self.on_import_from_shelf)
         # 主面板上的儲存按鈕也屬於檔案操作
         self.ui.save_button.clicked.connect(self.on_save_config_clicked)
         log.debug("FileIOHandler signals connected.")
@@ -58,7 +61,8 @@ class FileIOHandler:
         new_data = self.data_handler.load_menu_config(config_name)
         self.controller.current_menu_data = new_data
         
-        self.ui.populate_menu_tree(self.controller.current_menu_data)
+        # [重構] 呼叫 Controller 的集中刷新函式
+        self.controller._refresh_ui_tree_and_paths()
         self.ui.auto_expand_single_root()
         self._update_ui_title()
 
@@ -75,7 +79,8 @@ class FileIOHandler:
 
         if new_data:
             self.controller.current_menu_data.extend(new_data)
-            self.ui.populate_menu_tree(self.controller.current_menu_data)
+            # [重構] 呼叫 Controller 的集中刷新函式
+            self.controller._refresh_ui_tree_and_paths()
             self.ui.auto_expand_single_root()
 
     def on_file_save_as(self):
@@ -92,3 +97,76 @@ class FileIOHandler:
         self.controller.current_config_name = config_name
         self.data_handler.save_menu_config(config_name, self.controller.current_menu_data)
         self._update_ui_title()
+
+    def _perform_shelf_import(self, shelf_names: List[str]) -> List[MenuItemData]:
+        """
+        [新增] 根據提供的 Shelf 名稱列表，讀取其內容並轉換為 MenuItemData 物件列表。
+        """
+        new_menu_items = []
+        for shelf_name in shelf_names:
+            log.info(f"正在從 Shelf '{shelf_name}' 匯入...")
+            try:
+                # 獲取一個 Shelf 下的所有子元件 (按鈕、分隔線等)
+                shelf_buttons = cmds.shelfLayout(shelf_name, query=True, childArray=True)
+                if not shelf_buttons:
+                    continue
+
+                for button in shelf_buttons:
+                    # 我們只關心 shelfButton 類型的元件
+                    if cmds.objectTypeUI(button) != 'shelfButton':
+                        continue
+                    
+                    # 提取按鈕屬性
+                    command = cmds.shelfButton(button, query=True, command=True)
+                    # 嘗試獲取註解 (通常是工具提示)，如果沒有則用標籤
+                    label = cmds.shelfButton(button, query=True, annotation=True)
+                    if not label:
+                        label = cmds.shelfButton(button, query=True, label=True)
+                    if not label: # 如果都沒有，則使用按鈕的物件名
+                        label = button
+                    
+                    icon = cmds.shelfButton(button, query=True, image=True)
+                    
+                    # 判斷指令類型
+                    command_type = cmds.shelfButton(button, query=True, sourceType =True)
+
+                    # 創建 MenuItemData 物件
+                    item_data = MenuItemData(
+                        sub_menu_path=shelf_name, # 使用 Shelf 名稱作為預設路徑
+                        menu_label=label.strip(),
+                        function_str=command,
+                        icon_path=icon if icon != "commandButton.png" else "", # 忽略預設圖示
+                        command_type=command_type
+                    )
+                    new_menu_items.append(item_data)
+            except Exception as e:
+                log.error(f"匯入 Shelf '{shelf_name}' 時發生錯誤: {e}", exc_info=True)
+        
+        return new_menu_items
+
+    def on_import_from_shelf(self):
+        """
+        處理「從 Shelf 匯入」的動作。
+        [最終版本]
+        """
+        # 因為 ShelfImportDialog 已經被移到新檔案，我們需要修正 import 路徑
+        from ..shelf_import import ShelfImportDialog
+        dialog = ShelfImportDialog(self.ui)
+        
+        # exec_() 會顯示對話框，並等待使用者操作
+        # 如果使用者點擊 "Import"，它會返回 True
+        if dialog.exec_(): 
+            selected_shelves = dialog.get_selected_shelves()
+            if not selected_shelves:
+                return
+
+            log.info(f"使用者選擇了要匯入的 Shelves: {selected_shelves}")
+            
+            # 呼叫核心邏輯，獲取轉換後的 MenuItemData 列表
+            new_items = self._perform_shelf_import(selected_shelves)
+            
+            if new_items:
+                # 將新項目添加到當前的菜單資料中
+                self.controller.current_menu_data.extend(new_items)
+                # 呼叫主控制器的刷新方法，更新整個 UI
+                self.controller._refresh_ui_tree_and_paths()

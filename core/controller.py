@@ -72,10 +72,43 @@ class MenuBuilderController:
         # 4. 執行所有後續的初始化步驟
         self._load_initial_data()
         self._connect_signals()
-
-
         
         log.info("MenuBuilderController 初始化完成。")
+
+
+    def _update_path_combobox(self):
+        """
+        [UX 優化] 掃描當前菜單資料，更新路徑下拉選單的選項。
+        [正式版本]
+        """
+        log.debug("Updating path combobox options...")
+        # 使用 set 來自動處理重複的路徑
+        existing_paths = set()
+        for item_data in self.current_menu_data:
+            if item_data.sub_menu_path:
+                existing_paths.add(item_data.sub_menu_path)
+
+        # 為了避免觸發不必要的信號，並保持使用者輸入，先阻斷信號
+        self.ui.path_input.blockSignals(True)
+        current_text = self.ui.path_input.currentText()
+
+        self.ui.path_input.clear()
+        # 將路徑排序後加入
+        self.ui.path_input.addItems(sorted(list(existing_paths)))
+
+        # 嘗試恢復使用者可能正在輸入的文字
+        self.ui.path_input.setCurrentText(current_text)
+        self.ui.path_input.blockSignals(False)
+        log.debug(f"Path combobox updated with {len(existing_paths)} unique paths.")
+
+
+    def _refresh_ui_tree_and_paths(self):
+        """
+        [重構] 一個集中的函式，用於刷新UI樹狀圖和路徑下拉選單。
+        """
+        self.ui.populate_menu_tree(self.current_menu_data)
+        self._update_path_combobox()
+
 
     def _connect_signals(self):
         """
@@ -118,7 +151,8 @@ class MenuBuilderController:
         self.current_menu_data = self.data_handler.load_menu_config(default_config)
         
         if self.current_menu_data:
-            self.ui.populate_menu_tree(self.current_menu_data)
+            # [重構] 呼叫新的集中刷新函式
+            self._refresh_ui_tree_and_paths()
             # [核心修正] 確保這一行在 populate_menu_tree 之後被呼叫
             self.ui.auto_expand_single_root()
             
@@ -194,7 +228,8 @@ class MenuBuilderController:
         if item_to_remove_data:
             self.current_menu_data.remove(item_to_remove_data)
             log.info(f"已刪除菜單項: {item_to_remove_data.menu_label}")
-            self.ui.populate_menu_tree(self.current_menu_data)
+            # [重構] 呼叫新的集中刷新函式
+            self._refresh_ui_tree_and_paths()
         else:
             log.warning("無法刪除，所選項目是一個文件夾或沒有關聯資料。請使用右鍵選單刪除文件夾。")
     
@@ -271,47 +306,6 @@ class MenuBuilderController:
         
         cmds.inViewMessage(amg=f"<hl>{tr('controller_info_build_success')}</hl>", pos='midCenter', fade=True)
 
-    @preserve_ui_state
-    def on_add_item_clicked(self):
-        """
-        [穩定版] 處理「新增/更新」按鈕，並在操作後徹底重設狀態。
-        """
-        edited_data = self.ui.get_attributes_from_fields()
-        if not edited_data.menu_label:
-            log.warning("請確保'菜單標籤'欄位不為空。")
-            QtWidgets.QMessageBox.warning(self.ui, tr('attribute_editor_group'), tr('controller_warn_label_empty'))
-            return
-        
-        if not edited_data.sub_menu_path:
-            log.warning("請確保'菜單路徑'欄位不為空。")
-            QtWidgets.QMessageBox.warning(self.ui, tr('attribute_editor_group'), tr('controller_warn_path_empty'))
-            return
-
-        item_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole) if self.current_edit_item else None
-        
-        if self._is_name_conflict(edited_data.menu_label, edited_data.sub_menu_path, item_to_update):
-            return
-
-        self._sync_data_from_ui()
-
-        if self.current_edit_item:
-            item_data_to_update = self.current_edit_item.data(0, QtCore.Qt.UserRole)
-            log.info(f"更新項目 '{item_data_to_update.menu_label}'...")
-            
-            item_data_to_update.menu_label = edited_data.menu_label
-            item_data_to_update.sub_menu_path = edited_data.sub_menu_path
-            item_data_to_update.icon_path = edited_data.icon_path
-            item_data_to_update.function_str = edited_data.function_str
-            item_data_to_update.command_type = edited_data.command_type
-            
-            self.current_edit_item = None
-            
-        else:
-            self.current_menu_data.append(edited_data)
-            log.info(f"新增菜單項: {edited_data.menu_label}")
-        
-        self.ui.populate_menu_tree(self.current_menu_data)
-        self._refresh_editor_panel()
 
     def on_browse_custom_icon_clicked(self):
         """處理'瀏覽自訂圖示'按鈕的點擊事件。"""
