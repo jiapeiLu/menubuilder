@@ -3,18 +3,20 @@
 from .. import setting_reader
 from . import language
 import importlib
+from ..logger import log
 
 class LanguageManager:
-    def __init__(self, lang='en_us', languages=None):
+    def __init__(self):
         # 在初始化時，直接從 setting_reader 獲取語言設定
         importlib.reload(setting_reader)
         importlib.reload(language)
-        
+        print(f"【檢查點 C - LanguageManager】cancel_edit_button 的值: {language.LANG.get('cancel_edit_button', '未找到')}")
         self._current_lang = setting_reader.current_setting.get('language', 'en_us')
         self._languages = language.LANG
 
     def set_language(self, lang):
         self._current_lang = lang
+
 
     def tr(self, key: str, **kwargs) -> str:
         """

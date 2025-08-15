@@ -32,43 +32,39 @@ def reload_all():
     if instance:
         try:
             log.info("正在清理舊的 Menubuilder UI 實例...")
-            
-            # (*** 修改點 ***)
-            # 在關閉和刪除前，先呼叫自訂的清理函式移除事件過濾器
             instance.ui.clean_up() 
-            
-            # 確保UI視窗被正確關閉和刪除
             instance.ui.close()
             instance.ui.deleteLater()
         except Exception as e:
             log.error(f"清理舊UI時發生錯誤: {e}")
         finally:
-            # 無論如何都將實例設為 None
             instance = None
             log.info("舊實例已清除。")
 
-    # 2. 定義模組的重載順序 (從最底層的依賴開始)
-    #    這確保了當一個模組被重載時，它引用的其他模組已經是最新版本
+    # 2. 定義模組的重載順序
     reload_order = [
+        "core.languagelib.language",
+        "core.languagelib.language_manager",
+        "core.translator",
         "core.dto",
         "core.setting_reader",
         "core.logger",
         "core.script_parser",
-        "core.ui_dockable",
-        "core.data_handler",
+        "core.decorators",
+        "core.handlers.data_handler",
         "core.menu_generator",
         "core.ui",
+        "core.handlers.settings_handler",
+        "core.handlers.file_io_handler",
+        "core.handlers.tree_interaction_handler",
+        "core.handlers.editor_panel_handler",
         "core.controller"
     ]
 
-    # 3. 在 sys.modules 中動態尋找所有需要重載的模組
-    #    這樣做比寫死完整路徑更有彈性
-    modules_to_reload = []
-    for module_name in sys.modules:
-        if module_name.startswith("menubuilder"):
-            modules_to_reload.append(module_name)
+    # 3. 尋找所有需要重載的模組
+    modules_to_reload = [m for m in sys.modules if m.startswith("menubuilder")]
     
-    # 4. 按照我們定義的順序來重載模組
+    # 4. 按照順序重載模組
     log.info("--- 開始重載 Menubuilder 模組 ---")
     reloaded_modules = set()
     for key in reload_order:
@@ -81,7 +77,7 @@ def reload_all():
             except Exception as e:
                 log.error(f"重載 {full_module_name} 時失敗: {e}")
     
-    # 重載其他可能未在順序列表中的模組
+    # 重載其他未在順序列表中的模組
     for module_name in modules_to_reload:
         if module_name not in reloaded_modules:
             try:
@@ -90,6 +86,19 @@ def reload_all():
             except Exception as e:
                 log.error(f"重載 {module_name} 時失敗: {e}")
     
+    # 5. 在所有模組都重載完畢後，直接手動更新語言資料
+    log.info("正在手動更新語言實例的資料...")
+    try:
+        from .core.translator import tr_instance
+        from .core.languagelib import language
+
+        # 直接更新 LanguageManager 實例的內部屬性
+        tr_instance._languages = language.LANG
+        log.info("語言實例的資料已成功更新。")
+
+    except Exception as e:
+        log.error(f"手動更新語言資料時失敗: {e}", exc_info=True)
+        
     log.info("--- Menubuilder 模組重載完畢 ---")
 
 

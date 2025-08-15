@@ -76,7 +76,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         self._retranslation_list = []
         self._init_ui()
-        #self.retranslate_ui()
 
         QtWidgets.QApplication.instance().installEventFilter(self)
 
@@ -201,20 +200,27 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self._retranslation_list.append((self.form_layout.itemAt(3, QtWidgets.QFormLayout.LabelRole).widget().setText, "preview_form", {}))
 
         self.attribute_box.setLayout(self.form_layout)
-       
+
+        update_edit_layout = QtWidgets.QHBoxLayout()
         self.add_update_button = QtWidgets.QPushButton()
+        self.cancel_edit_button = QtWidgets.QPushButton()
+        self.cancel_edit_button.setVisible(False)
+        update_edit_layout.addWidget(self.add_update_button)
+        update_edit_layout.addWidget(self.cancel_edit_button)
+
         self.save_button = QtWidgets.QPushButton()
         self.build_menus_button = QtWidgets.QPushButton()
 
         # 注意：add_update_button 的文字是動態的，由 controller._refresh_editor_panel 處理
         # 因此它「不需要」被註冊到這個靜態列表中
+        self._retranslation_list.append((self.cancel_edit_button.setText, "cancel_edit_button", {}))
         self._retranslation_list.append((self.save_button.setText, "save_config_button", {}))
         self._retranslation_list.append((self.build_menus_button.setText, "build_menus_button", {}))
 
 
         right_layout.addWidget(self.input_tabs)
         right_layout.addWidget(self.attribute_box)
-        right_layout.addWidget(self.add_update_button)
+        right_layout.addLayout(update_edit_layout)
         right_layout.addStretch()
         right_layout.addWidget(self.save_button)
         right_layout.addWidget(self.build_menus_button)
@@ -281,6 +287,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         #print('ui-tr_instance',id(tr_instance))
         #print('ui-tr',id(tr))
         # --- 核心自動化邏輯 ---
+        # --- 加入結束 ---
+
         for setter_method, key, options in self._retranslation_list:
             text = tr(key)
             

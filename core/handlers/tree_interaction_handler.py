@@ -25,12 +25,49 @@ class TreeInteractionHandler:
 
     def connect_signals(self):
         """連接所有與樹狀圖相關的 UI 信號。"""
+        # [UX 優化] 新增 currentItemChanged 信號，用於單擊預覽
+        self.ui.menu_tree_view.currentItemChanged.connect(self.on_tree_item_selection_changed)
+        
         self.ui.menu_tree_view.itemDoubleClicked.connect(self.on_tree_item_double_clicked)
         self.ui.menu_tree_view.customContextMenuRequested.connect(self.ui.on_tree_context_menu)
         self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed)
         self.ui.menu_tree_view.drop_event_completed.connect(self.on_drop_event_completed)
         log.debug("TreeInteractionHandler signals connected.")
+        
+    def _clear_editor_for_preview(self):
+        """輔助函式，用於在預覽模式下清空屬性編輯器面板。"""
+        self.ui.label_input.clear()
+        self.ui.path_input.clear()
+        self.ui.icon_input.clear()
+        self.ui.manual_cmd_input.clear()
+        self.ui.function_list.clear()
+        self.ui.current_script_path_label.clear()
+        self.ui.python_radio.setChecked(True)
+        self.ui.input_tabs.setCurrentIndex(0)
 
+    def on_tree_item_selection_changed(self, current: QtWidgets.QTreeWidgetItem, previous: QtWidgets.QTreeWidgetItem):
+        """
+        [UX 優化] 當使用者單擊樹狀圖中的項目時，在右側面板中顯示其屬性以供預覽。
+        這個函式不會觸發「編輯模式」。
+        """
+        # 如果當前正處於編輯模式，則完全忽略單擊事件，防止使用者在編輯時切換預覽項目
+        if self.controller.current_edit_item:
+            log.debug("Selection changed ignored: Currently in edit mode.")
+            return
+
+        # 如果沒有選擇任何項目，或者選擇的是一個沒有資料的項目 (例如資料夾或分隔線)
+        if not current or not current.data(0, QtCore.Qt.UserRole):
+            self._clear_editor_for_preview()
+            return
+        
+        item_data = current.data(0, QtCore.Qt.UserRole)
+        if item_data.is_divider:
+            self._clear_editor_for_preview()
+            return
+
+        # 核心邏輯：呼叫UI方法來填充欄位，但不設定 current_edit_item
+        log.debug(f"Previewing item: {item_data.menu_label}")
+        self.ui.set_attributes_to_fields(item_data)
     def on_tree_item_double_clicked(self, item, column):
         """當項目被雙擊時，進入「編輯模式」。"""
         item_data = item.data(0, QtCore.Qt.UserRole)

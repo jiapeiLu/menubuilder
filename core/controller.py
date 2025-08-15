@@ -89,6 +89,10 @@ class MenuBuilderController:
             return
         log.debug("正在進行初次信號連接...")
 
+        # [UX 優化] 連接取消編輯按鈕的信號
+        if hasattr(self.ui, 'cancel_edit_button'):
+            self.ui.cancel_edit_button.clicked.connect(self.on_cancel_edit)
+
         self.ui.build_menus_button.clicked.connect(self.on_build_menu_clicked)
         
         self.tree_handler.connect_signals()
@@ -333,12 +337,19 @@ class MenuBuilderController:
         """
         self.ui.clear_all_highlights()
 
+        # 檢查 cancel_edit_button 是否存在，以提供向下相容性
+        cancel_button_exists = hasattr(self.ui, 'cancel_edit_button')
+
         if self.current_edit_item:
             # --- 進入編輯模式 ---
             
             # [核心修正] 禁用左側樹狀圖，強化視覺區隔，並禁止拖曳
             self.ui.menu_tree_view.setEnabled(False)
             log.debug("已進入編輯模式，禁用樹狀圖。")
+            
+            # [UX 優化] 顯示取消按鈕
+            if cancel_button_exists:
+                self.ui.cancel_edit_button.setVisible(True)
 
             # 原有的高亮和欄位填充邏輯不變
             self.ui.set_item_highlight(self.current_edit_item, True)
@@ -358,6 +369,10 @@ class MenuBuilderController:
             self.ui.menu_tree_view.setEnabled(True)
             log.debug("已退出編輯模式，恢復樹狀圖。")
             
+            # [UX 優化] 隱藏取消按鈕
+            if cancel_button_exists:
+                self.ui.cancel_edit_button.setVisible(False)
+            
             self.ui.add_update_button.setText(tr('add_to_structure_button'))
             #highlight_color = QtGui.QColor("#446A3B")
             self.ui.add_update_button.setStyleSheet("")
@@ -366,7 +381,6 @@ class MenuBuilderController:
             self.ui.icon_input.clear()
             self.ui.manual_cmd_input.clear()
             #self.ui.input_tabs.setCurrentIndex(0)
-
         
     def on_about(self):
         """

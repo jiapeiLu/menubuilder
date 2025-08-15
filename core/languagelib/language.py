@@ -342,9 +342,14 @@ LANG = {
         'ja_jp': '「パス」欄が空でないことを確認してください。'
     },
     'update_finish_editing_button': {
-        'en_us': 'Update | Finish Editing',
-        'zh_tw': '更新 | 結束編輯',
-        'ja_jp': '更新 | 編集を終了'
+        'en_us': 'Update',
+        'zh_tw': '儲存更新',
+        'ja_jp': '編集を終了'
+    },
+    'cancel_edit_button': {
+        'en_us': 'Cancel',
+        'zh_tw': '取消編輯',
+        'ja_jp': 'キャンセル'
     },
     'controller_confirm_delete_title': {
         'en_us': 'Confirm Deletion',
