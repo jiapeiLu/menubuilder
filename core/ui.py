@@ -205,8 +205,9 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.add_update_button = QtWidgets.QPushButton()
         self.cancel_edit_button = QtWidgets.QPushButton()
         self.cancel_edit_button.setVisible(False)
-        update_edit_layout.addWidget(self.add_update_button)
         update_edit_layout.addWidget(self.cancel_edit_button)
+        update_edit_layout.addWidget(self.add_update_button)
+
 
         self.save_button = QtWidgets.QPushButton()
         self.build_menus_button = QtWidgets.QPushButton()
@@ -518,7 +519,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
     def on_tree_context_menu(self, point: QtCore.QPoint):
         """
-        [微調版] 允許在分隔線上新增項目。
+        右鍵選項邏輯。
         """
         menu = QtWidgets.QMenu(self)
         item = self.menu_tree_view.itemAt(point)
@@ -537,7 +538,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             path_for_actions = item_data.sub_menu_path if item_data else self.get_path_for_item(item)
             
             # --- 結構群組 ---
-            if item_data and not item_data.is_divider: # 只有功能項可以被操作為選項框
+            if item_data and not item_data.is_divider:
                 action_toggle_option_box = QtWidgets.QAction()
                 if item_data.is_option_box:
                     action_toggle_option_box.setText(tr('context_unset_option_box'))
@@ -557,25 +558,28 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 menu.addAction(action_toggle_option_box)
 
             action_add_under = menu.addAction(tr('context_add_item'))
-            action_add_separator = menu.addAction(tr('context_add_separator'))
+            action_add_under.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_under, path_for_actions))
+
+            is_folder = not item_data
+
+            # --- [核心修正] ---
+            # 只有在當前項目不是分隔線的情況下，才加入“新增分隔線”的選項
+            if not (item_data and item_data.is_divider):
+                action_add_separator = menu.addAction(tr('context_add_separator'))
+                action_add_separator.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_separator, item))
+                # 如果是父物件或資料夾，則將其設為禁用 (因為選項已出現)
+                if is_parent_item or is_folder:
+                    action_add_separator.setEnabled(False)
+            # --- 修正結束 ---
 
             # 父物件下方不能插入任何東西
             if is_parent_item:
                 action_add_under.setEnabled(False)
-                action_add_separator.setEnabled(False)
-            
-            is_folder = not item_data
-            # 資料夾內部不能插入分隔線
-            if is_folder:
-                action_add_separator.setEnabled(False)
 
-            # 將路徑資訊傳遞給新增操作
-            action_add_under.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_under, path_for_actions))
-            action_add_separator.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_separator, item))
             menu.addSeparator()
 
             # --- 輔助與破壞性群組 ---
-            if not (item_data and item_data.is_divider): # 分隔線沒有路徑可傳送
+            if not (item_data and item_data.is_divider):
                 menu.addAction(tr('context_send_path', path=path_for_actions),
                                functools.partial(self.controller.tree_handler.on_context_send_path, path_for_actions))
                 menu.addSeparator()
