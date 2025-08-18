@@ -150,6 +150,12 @@ class TreeInteractionHandler:
         """
         [增加父物件判斷] 處理刪除操作，能同時刪除父物件與其選項框。
         """
+        # 在執行任何可能重建UI的操作前，先檢查是否處於編輯模式。
+        # 如果是，則強制退出編輯模式，以避免產生指向已刪除物件的「殭屍參考」。
+        if self.controller.current_edit_item:
+            log.warning("操作中斷了進行中的編輯，已自動退出編輯模式。")
+            self.controller.on_cancel_edit()
+
         if not isinstance(item, QtWidgets.QTreeWidgetItem):
             return
 
