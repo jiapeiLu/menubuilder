@@ -17,7 +17,7 @@ from maya import cmds, mel
 import os
 from pathlib import Path
 
-from menubuilder import __version__, __author__
+from .. import __version__, __author__
 
 from .logger import log  # 從我們建立的logger模組導入已經配置好的log實例
 from .setting_reader import current_setting

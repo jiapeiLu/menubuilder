@@ -10,22 +10,22 @@ Menubuilder - User Interface Module (View)
 等類別。它的職責是呈現資料和佈局，並在使用者操作時發出信號(signals)
 給 Controller。它本身不包含任何業務邏輯。
 """
-from PySide2 import QtWidgets, QtCore, QtGui
-from typing import List
-from .dto import MenuItemData
-from .logger import log
+
+import maya.OpenMayaUI as omui
 import maya.cmds as cmds
 import functools
-#from . import translator
-from .translator import tr
+
+from PySide2 import QtWidgets, QtCore, QtGui
 from shiboken2 import wrapInstance
-import maya.OpenMayaUI as omui
-
-from menubuilder import __version__
-
+from typing import List
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .controller import MenuBuilderController
+
+from .dto import MenuItemData
+from .logger import log
+from .translator import tr
+from .. import __version__
 
 
 def get_maya_main_window():
