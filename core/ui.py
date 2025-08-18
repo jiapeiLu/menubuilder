@@ -673,7 +673,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             if event.key() == QtCore.Qt.Key_Escape:
                 # 如果是，就呼叫 Controller 的取消函式
                 log.debug("事件過濾器偵測到 ESC 鍵，嘗試取消編輯。")
-                self.controller.on_cancel_edit()
+                self.controller.editor_handler.on_cancel_edit()
                 # 返回 True，代表我們已經處理了這個事件，它不需要再繼續傳遞
                 return True
         
