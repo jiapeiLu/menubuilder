@@ -54,6 +54,7 @@ class MenuBuilderController:
         self.current_selected_script_path = None
         self.current_config_name = None
         self.current_edit_item = None
+        self.insertion_target_item_data = None
         self._signals_connected = False
         
         # 2. 創建 UI 實例，並將其賦值給 self.ui
@@ -121,10 +122,6 @@ class MenuBuilderController:
             log.debug("信號已經連接過，跳過。")
             return
         log.debug("正在進行初次信號連接...")
-
-        # [UX 優化] 連接取消編輯按鈕的信號
-        if hasattr(self.ui, 'cancel_edit_button'):
-            self.ui.cancel_edit_button.clicked.connect(self.on_cancel_edit)
 
         self.ui.build_menus_button.clicked.connect(self.on_build_menu_clicked)
         
@@ -430,14 +427,3 @@ class MenuBuilderController:
             return None
         return None
     
-    def on_cancel_edit(self):
-        """
-        處理使用者取消編輯的操作 (例如按下 ESC 鍵)。
-        """
-        # 只有當前正處於編輯模式時，這個操作才有效
-        if self.current_edit_item:
-            log.info("使用者取消編輯，正在退出編輯模式...")
-            
-            # 執行退出編輯模式的標準流程
-            self.current_edit_item = None
-            self._refresh_editor_panel()

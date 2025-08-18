@@ -216,18 +216,32 @@ class TreeInteractionHandler:
         
         self.controller._refresh_ui_tree_and_paths()
 
-    def on_context_add_under(self, parent_path: str):
-        """在指定的父路徑下準備新增一個項目。"""
-        log.debug(f"準備在 '{parent_path}' 下新增項目。")
+    @preserve_ui_state
+    def on_context_add_under(self, target_item: QtWidgets.QTreeWidgetItem):
+        """
+        [修正版] 在指定的父路徑下準備新增一個項目，並記住插入點。
+        """
+        target_data = target_item.data(0, QtCore.Qt.UserRole)
+        parent_path = ""
+
+        if target_data: # 如果點擊的是功能項或分隔線
+            parent_path = target_data.sub_menu_path
+            # [核心修正] 記住我們想要在哪個項目後面插入新項目
+            self.controller.insertion_target_item_data = target_data
+        else: # 如果點擊的是資料夾
+            parent_path = self.ui.get_path_for_item(target_item)
+            # 在資料夾上點擊，代表添加到該資料夾末尾，無需指定特定插入點
+            self.controller.insertion_target_item_data = None
         
+        log.debug(f"準備在 '{parent_path}' 下新增項目。插入目標: {self.controller.insertion_target_item_data}")
+        
+        # 清空並準備編輯器
         self.ui.path_input.setCurrentText(parent_path)
         self.ui.label_input.clear()
         self.ui.manual_cmd_input.clear()
-        
         self.controller.current_edit_item = None
-        
+        self.controller._refresh_ui_tree_and_paths()
         self.controller._refresh_editor_panel()
-
         self.ui.label_input.setFocus()
 
     @preserve_ui_state

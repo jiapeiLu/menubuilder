@@ -31,6 +31,7 @@ class EditorPanelHandler:
         self.ui.icon_buildin_btn.clicked.connect(self.on_browse_icon_clicked)
         self.ui.icon_browse_btn.clicked.connect(self.on_browse_custom_icon_clicked)
         self.ui.add_update_button.clicked.connect(self.on_add_item_clicked)
+        self.ui.cancel_edit_button.clicked.connect(self.on_cancel_edit)
         self.ui.test_run_button.clicked.connect(self.on_test_run_clicked)
         log.debug("EditorPanelHandler signals connected.")
 
@@ -78,6 +79,20 @@ class EditorPanelHandler:
         self.ui.python_radio.setChecked(True)
 
     @preserve_ui_state
+    def on_cancel_edit(self):
+        """
+        處理使用者取消編輯的操作 (例如按下 ESC 鍵)。
+        """
+        # 只有當前正處於編輯模式時，這個操作才有效
+        if self.controller.current_edit_item:
+            log.info("使用者取消編輯，正在退出編輯模式...")
+            
+            # 執行退出編輯模式的標準流程
+            self.controller.current_edit_item = None
+            self.controller._refresh_ui_tree_and_paths()
+            self.controller._refresh_editor_panel()
+
+    @preserve_ui_state
     def on_add_item_clicked(self):
         """處理「新增/更新」按鈕，並在操作後徹底重設狀態。"""
         edited_data = self.ui.get_attributes_from_fields()
@@ -92,6 +107,7 @@ class EditorPanelHandler:
         self.controller._sync_data_from_ui()
 
         if self.controller.current_edit_item:
+            # --- 更新現有項目的邏輯 (不變) ---
             item_data_to_update = self.controller.current_edit_item.data(0, QtCore.Qt.UserRole)
             log.info(f"更新項目 '{item_data_to_update.menu_label}'...")
             
@@ -103,10 +119,27 @@ class EditorPanelHandler:
             
             self.controller.current_edit_item = None
         else:
-            self.controller.current_menu_data.append(edited_data)
-            log.info(f"新增菜單項: {edited_data.menu_label}")
+            # --- [核心修正] 新增項目的邏輯 ---
+            target = self.controller.insertion_target_item_data
+            if target:
+                try:
+                    # 找到目標在列表中的索引
+                    target_index = self.controller.current_menu_data.index(target)
+                    # 在目標的下一個位置插入新項目
+                    self.controller.current_menu_data.insert(target_index + 1, edited_data)
+                    log.info(f"已在 '{target.menu_label}' 之後插入新項目: {edited_data.menu_label}")
+                except ValueError:
+                    # 如果出錯 (極罕見)，則退回至預設行為
+                    log.warning("找不到插入目標，將項目附加到列表末尾。")
+                    self.controller.current_menu_data.append(edited_data)
+                finally:
+                    # 無論成功或失敗，都必須重設狀態，避免影響下一次操作
+                    self.controller.insertion_target_item_data = None
+            else:
+                # 如果沒有指定插入目標 (例如直接在編輯器中新增)，則附加到末尾
+                self.controller.current_menu_data.append(edited_data)
+                log.info(f"已將新項目附加到列表末尾: {edited_data.menu_label}")
         
-        # [重構] 呼叫 Controller 的集中刷新函式
         self.controller._refresh_ui_tree_and_paths()
         self.controller._refresh_editor_panel()
 
@@ -137,20 +170,20 @@ class EditorPanelHandler:
         # No code skip action
         if not code_to_run: return
 
-        print("\n" + "="*50)
-        print("--- Menubuilder: Attempting Test Run ---")
+        log.info("\n" + "="*50)
+        log.info("--- Menubuilder: Attempting Test Run ---")
         success = False
         error_info = ""
 
         try:
             if not is_mel:
-                print("Executing as PYTHON:\n")
-                print(code_to_run)
+                log.info("Executing as PYTHON:\n")
+                log.info(code_to_run)
                 exec(code_to_run, globals(), locals())
 
             else:
-                print("Executing as MEL:\n")
-                print(code_to_run)
+                log.info("Executing as MEL:\n")
+                log.info(code_to_run)
                 mel.eval(code_to_run)
             success = True
         
@@ -160,10 +193,10 @@ class EditorPanelHandler:
         
         # --- 格式化最終輸出 ---
         if success:
-            print("\n\nExecuted successfully.")
+            log.info("\n\nExecuted successfully.")
             cmds.inViewMessage(amg=f"<hl>{tr('controller_info_test_run_success')}</hl>", pos='midCenter', fade=True)
         else:
             cmds.warning(f"{tr('controller_warn_test_run_failed')} {error_info}")
-        print("--- Test Run Finished ---")
-        print("="*50 + "\n")
+        log.info("--- Test Run Finished ---")
+        log.info("="*50 + "\n")
 

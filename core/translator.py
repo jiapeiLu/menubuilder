@@ -23,7 +23,7 @@ def get_translator_instance():
     # 檢查實例是否已經被附加到 app 上
     # 我們使用一個唯一的屬性名來儲存它
     if not hasattr(app, '_menubuilder_translator_instance'):
-        print("INFO: Creating new LanguageManager instance.")
+
         # 如果不存在，則創建一個新的，並將其附加到 app 上
         instance = LanguageManager()
         setattr(app, '_menubuilder_translator_instance', instance)

@@ -67,7 +67,7 @@ class ScriptParser:
             return functions
         except Exception as e:
             # 在真實的應用中，應該讓log系統來記錄這個錯誤
-            print(f"解析檔案時出錯: {e}")
+            log.error(f"解析檔案時出錯: {e}")
             return []
 
     @staticmethod

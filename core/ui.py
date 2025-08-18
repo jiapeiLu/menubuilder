@@ -398,8 +398,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             final_path = f"{item_data.sub_menu_path}/{item_data.menu_label}" if item_data.sub_menu_path else item_data.menu_label
             self.item_map[final_path] = menu_qitem
 
-        #self.set_item_highlight(self.controller.current_edit_item, bold=True)
-
         self.menu_tree_view.blockSignals(False)
     
     def get_attributes_from_fields(self) -> MenuItemData:
@@ -558,7 +556,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
                 menu.addAction(action_toggle_option_box)
 
             action_add_under = menu.addAction(tr('context_add_item'))
-            action_add_under.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_under, path_for_actions))
+            #action_add_under.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_under, path_for_actions))
+            action_add_under.triggered.connect(functools.partial(self.controller.tree_handler.on_context_add_under, item))
 
             is_folder = not item_data
 
@@ -629,12 +628,14 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         font.setBold(bold)
         item_to_highlight.setFont(0, font)
 
+        """ 編輯鎖定後，背景顏色就不重要了
         if bold:
             highlight_color = QtGui.QColor("#34532D")
             item_to_highlight.setBackground(0, QtGui.QBrush(highlight_color))
         else:
             item_to_highlight.setBackground(0, QtGui.QBrush())
-
+        """
+    
     def clear_all_highlights(self):
         """清除樹狀視圖中所有項目的高亮狀態，使其恢復正常字體。"""
         iterator = QtWidgets.QTreeWidgetItemIterator(self.menu_tree_view)
@@ -644,8 +645,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             if font.bold():
                 font.setBold(False)
                 item.setFont(0, font)
+
+            """ 編輯鎖定後，背景顏色就不重要了
             if item.background(0).style() != QtCore.Qt.NoBrush:
                  item.setBackground(0, QtGui.QBrush())
+            """
             iterator += 1
 
     def auto_expand_single_root(self):
