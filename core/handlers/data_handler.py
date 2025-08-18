@@ -12,6 +12,7 @@ Menubuilder - Data Handler Module (Model)
 import json
 from pathlib import Path
 from typing import List
+import os
 from ..dto import MenuItemData
 from ..logger import log
 
@@ -25,6 +26,21 @@ class DataHandler:
     
     # 動態獲取 menuitems 資料夾的路徑
     MENUITEMS_DIR = Path(__file__).parent.parent.parent / "menuitems"
+
+    def __init__(self):
+        """
+        初始化 DataHandler，動態決定菜單設定檔的路徑。
+        """
+        # 1. 嘗試從環境變數讀取路徑
+        env_path = os.environ.get('MENUBUILDER_CONFIG_PATH')
+
+        if env_path and os.path.exists(env_path):
+            self.MENUITEMS_DIR = Path(env_path)
+            log.info(f"使用環境變數指定的路徑: {self.MENUITEMS_DIR}")
+        else:
+            # 2. 如果環境變數不存在，則使用預設的相對路徑
+            self.MENUITEMS_DIR = Path(__file__).parent.parent.parent / "menuitems"
+            log.info(f"使用工具預設路徑: {self.MENUITEMS_DIR}")
 
     def load_menu_config(self, config_name: str) -> List[MenuItemData]:
         """
