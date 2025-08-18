@@ -73,10 +73,7 @@ class SettingsHandler:
         setting_reader.current_setting['language'] = new_lang
         setting_reader.save_setting(setting_reader.current_setting)
         
-        from ..translator import tr_instance , tr
-        #print('settings-tr_instance',id(tr_instance))
-        #print('settings-tr_instance.tr',id(tr_instance.tr))
-        #print('settings-tr',id(tr))
+        from ..translator import tr_instance 
         tr_instance.set_language(new_lang)
         self.ui.retranslate_ui()
         
