@@ -201,13 +201,19 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         self.attribute_box.setLayout(self.form_layout)
 
+        # --- 建立一個垂直方向的 QSplitter ---
+        # -------------------------------------------------------------
+        self.right_splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
+        self.right_splitter.addWidget(self.input_tabs)      # 將 Tab Widget 作為上半部分
+        self.right_splitter.addWidget(self.attribute_box) # 將屬性編輯器作為下半部分
+        self.right_splitter.setSizes([420, 400]) 
+
         update_edit_layout = QtWidgets.QHBoxLayout()
         self.add_update_button = QtWidgets.QPushButton()
         self.cancel_edit_button = QtWidgets.QPushButton()
         self.cancel_edit_button.setVisible(False)
         update_edit_layout.addWidget(self.cancel_edit_button)
         update_edit_layout.addWidget(self.add_update_button)
-
 
         self.save_button = QtWidgets.QPushButton()
         self.build_menus_button = QtWidgets.QPushButton()
@@ -218,11 +224,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self._retranslation_list.append((self.save_button.setText, "save_config_button", {}))
         self._retranslation_list.append((self.build_menus_button.setText, "build_menus_button", {}))
 
-
-        right_layout.addWidget(self.input_tabs)
-        right_layout.addWidget(self.attribute_box)
+        right_layout.addWidget(self.right_splitter)
         right_layout.addLayout(update_edit_layout)
-        right_layout.addStretch()
         right_layout.addWidget(self.save_button)
         right_layout.addWidget(self.build_menus_button)
 
@@ -287,8 +290,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         正確地處理不同參數數量的更新函式。
         """
         log.info("正在自動化重新翻譯 UI...")
-        #print('ui-tr_instance',id(tr_instance))
-        #print('ui-tr',id(tr))
         # --- 核心自動化邏輯 ---
         # --- 加入結束 ---
 
