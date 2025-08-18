@@ -31,6 +31,7 @@ class FileIOHandler:
         self.ui.save_action.triggered.connect(self.on_save_config_clicked)
         self.ui.save_as_action.triggered.connect(self.on_file_save_as)
         self.ui.import_from_shelf_action.triggered.connect(self.on_import_from_shelf)
+        self.ui.exit_action.triggered.connect(self.on_file_exit)
         # 主面板上的儲存按鈕也屬於檔案操作
         self.ui.save_button.clicked.connect(self.on_save_config_clicked)
         log.debug("FileIOHandler signals connected.")
@@ -40,6 +41,14 @@ class FileIOHandler:
     def _update_ui_title(self):
         """輔助函式，用來通知UI更新標題。"""
         self.ui.update_tree_view_title(self.controller.current_config_name)
+
+    def on_file_exit(self):
+        """
+        處理「離開」動作，關閉主視窗。
+        """
+        log.info("使用者點擊離開，正在關閉視窗...")
+        # self.ui 是指向主視窗(QMainWindow)的參考，直接呼叫它的 close() 方法即可
+        self.ui.close()
 
     def on_save_config_clicked(self):
         """儲存當前的菜單結構到檔案。"""
