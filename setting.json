@@ -7,11 +7,11 @@
         "ERROR",
         "CRITICAL"
     ],
-    "log_level": "ERROR",
+    "log_level": "DEBUG",
     "languages_modes": [
         "zh_tw",
         "en_us",
         "ja_jp"
     ],
-    "language": "en_us"
+    "language": "zh_tw"
 }

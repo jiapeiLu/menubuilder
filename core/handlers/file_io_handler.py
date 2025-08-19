@@ -55,6 +55,7 @@ class FileIOHandler:
         self.controller._sync_data_from_ui()
         # 注意：此處儲存的是當前 controller 內的 config name
         self.data_handler.save_menu_config(self.controller.current_config_name, self.controller.current_menu_data)
+        self.controller.set_dirty(False)
 
     def on_file_open(self):
         """處理 '開啟' 動作。"""
@@ -74,6 +75,7 @@ class FileIOHandler:
         self.controller._refresh_ui_tree_and_paths()
         self.ui.auto_expand_single_root()
         self._update_ui_title()
+        self.controller.set_dirty(False)
 
     def on_file_merge(self):
         """處理 '合併' 動作。"""
@@ -106,6 +108,7 @@ class FileIOHandler:
         self.controller.current_config_name = config_name
         self.data_handler.save_menu_config(config_name, self.controller.current_menu_data)
         self._update_ui_title()
+        self.controller.set_dirty(False)
 
     def _perform_shelf_import(self, shelf_names: List[str]) -> List[MenuItemData]:
         """
@@ -177,5 +180,6 @@ class FileIOHandler:
             if new_items:
                 # 將新項目添加到當前的菜單資料中
                 self.controller.current_menu_data.extend(new_items)
+                self.controller.set_dirty(True)
                 # 呼叫主控制器的刷新方法，更新整個 UI
                 self.controller._refresh_ui_tree_and_paths()

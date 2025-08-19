@@ -140,6 +140,7 @@ class EditorPanelHandler:
                 self.controller.current_menu_data.append(edited_data)
                 log.info(f"已將新項目附加到列表末尾: {edited_data.menu_label}")
         
+        self.controller.set_dirty(True)
         self.controller._refresh_ui_tree_and_paths()
         self.controller._refresh_editor_panel()
 

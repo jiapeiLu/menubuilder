@@ -26,6 +26,7 @@ class TreeInteractionHandler:
     def connect_signals(self):
         """連接所有與樹狀圖相關的 UI 信號。"""
         # [UX 優化] 新增 currentItemChanged 信號，用於單擊預覽
+        self.ui.menu_tree_view.empty_space_clicked.connect(self._enter_add_mode)
         self.ui.menu_tree_view.currentItemChanged.connect(self.on_tree_item_selection_changed)
         
         self.ui.menu_tree_view.itemDoubleClicked.connect(self.on_tree_item_double_clicked)
@@ -33,9 +34,14 @@ class TreeInteractionHandler:
         self.ui.menu_tree_view.itemChanged.connect(self.on_tree_item_renamed)
         self.ui.menu_tree_view.drop_event_completed.connect(self.on_drop_event_completed)
         log.debug("TreeInteractionHandler signals connected.")
-
-    def _clear_editor_for_preview(self):
-        """輔助函式，用於在預覽模式下清空屬性編輯器面板。"""
+        
+    
+    def _enter_add_mode(self):
+        """
+        [最終版] 進入「新增模式」。清空所有欄位，並確保它們都處於可編輯狀態。
+        """
+        log.debug("Entering Add Mode...")
+        # 1. 清空所有欄位
         self.ui.label_input.clear()
         self.ui.path_input.setCurrentText("")
         self.ui.icon_input.clear()
@@ -45,29 +51,48 @@ class TreeInteractionHandler:
         self.ui.python_radio.setChecked(True)
         self.ui.input_tabs.setCurrentIndex(0)
 
+        # 2. 重設 Controller 的編輯狀態
+        self.controller.current_edit_item = None
+        self.controller.insertion_target_item_data = None
+
+        # 3. 直接設定 UI 狀態
+        self.ui.add_update_button.setText(tr('add_to_structure_button'))
+        if hasattr(self.ui, 'cancel_edit_button'):
+            self.ui.cancel_edit_button.setVisible(False)
+
+        # 4. 啟用所有欄位和按鈕，準備新增
+        self.ui.set_editor_fields_enabled(True)
+
+        # 5. 將游標聚焦，方便輸入
+        self.ui.label_input.setFocus()
+
+
     def on_tree_item_selection_changed(self, current: QtWidgets.QTreeWidgetItem, previous: QtWidgets.QTreeWidgetItem):
         """
-        [UX 優化] 當使用者單擊樹狀圖中的項目時，在右側面板中顯示其屬性以供預覽。
-        這個函式不會觸發「編輯模式」。
+        [最終版] 只負責處理「項目之間」的切換，進入對應的模式。
         """
-        # 如果當前正處於編輯模式，則完全忽略單擊事件，防止使用者在編輯時切換預覽項目
         if self.controller.current_edit_item:
             log.debug("Selection changed ignored: Currently in edit mode.")
             return
 
-        # 如果沒有選擇任何項目，或者選擇的是一個沒有資料的項目 (例如資料夾或分隔線)
-        if not current or not current.data(0, QtCore.Qt.UserRole):
-            self._clear_editor_for_preview()
-            return
-        
-        item_data = current.data(0, QtCore.Qt.UserRole)
-        if item_data.is_divider:
-            self._clear_editor_for_preview()
+        # 如果 current 為 None，代表是透過程式碼或點擊空白處觸發的清空選取
+        # 這種情況已經由 empty_space_clicked 信號處理，這裡直接返回即可。
+        if not current:
             return
 
-        # 核心邏輯：呼叫UI方法來填充欄位，但不設定 current_edit_item
-        log.debug(f"Previewing item: {item_data.menu_label}")
+        item_data = current.data(0, QtCore.Qt.UserRole)
+
+        # 如果選中的是資料夾或分隔線，進入新增模式
+        if not item_data or item_data.is_divider:
+            self._enter_add_mode()
+            return
+            
+        # 只有選中功能項時，才進入預覽模式
+        log.debug(f"Item '{item_data.menu_label}' selected. Entering Preview Mode.")
         self.ui.set_attributes_to_fields(item_data)
+        self.ui.set_editor_fields_enabled(False)
+        self.ui.add_update_button.setText(tr('add_to_structure_button'))
+
     def on_tree_item_double_clicked(self, item, column):
         """當項目被雙擊時，進入「編輯模式」。"""
         item_data = item.data(0, QtCore.Qt.UserRole)
@@ -82,25 +107,32 @@ class TreeInteractionHandler:
     @preserve_ui_state
     def on_drop_event_completed(self, source_item, target_item, indicator):
         """處理合法的拖放，並確保 Option Box 正確跟隨其父物件。"""
+        # --- [核心修正] ---
+        # 在執行任何可能重建UI的操作前，先檢查是否處於編輯模式。
+        # 如果是，則強制退出編輯模式，以避免產生指向已刪除物件的「殭屍參考」。
+        if self.controller.current_edit_item:
+            log.warning("拖曳操作中斷了進行中的編輯，已自動退出編輯模式。")
+            # 注意：on_cancel_edit 存在於 editor_handler 中
+            self.controller.editor_handler.on_cancel_edit()
+        # --- 修正結束 ---
+
         source_data = source_item.data(0, QtCore.Qt.UserRole)
         if not source_data: return
 
-        # 1. 在同步UI、打亂順序之前，先檢查被拖曳的物件身後是否跟著一個 Option Box。
         option_box_to_follow = self.controller._get_option_box_for_parent(source_data, self.controller.current_menu_data)
-        # 2. 執行UI同步。這會將父物件移動到新位置，並在資料層面暫時「拋下」Option Box。
         self.controller._sync_data_from_ui()
 
-        # 3. 如果我們在第一步記住了有 Option Box 需要跟隨，現在就來手動修正它的位置和路徑。
         if option_box_to_follow:
-            # 首先，更新它的路徑，使其與父物件的新路徑保持一致
             option_box_to_follow.sub_menu_path = source_data.sub_menu_path
-            # 然後，在資料列表中，把它從舊的位置移除，再插入到父物件的新位置後面
             self.controller.current_menu_data.remove(option_box_to_follow)
             new_parent_index = self.controller.current_menu_data.index(source_data)
             self.controller.current_menu_data.insert(new_parent_index + 1, option_box_to_follow)
         
-        # 4. 用完全修正後的、完美的資料列表，徹底重繪 UI。
+        self.controller.set_dirty(True)
         self.controller._refresh_ui_tree_and_paths()
+        
+        # 由於我們在開頭已經強制退出了編輯模式，這裡的 if 判斷將永遠為 False
+        # 但保留它也無妨，程式碼依然是安全的
         if self.controller.current_edit_item:
             self.controller._refresh_editor_panel()
     
@@ -140,6 +172,7 @@ class TreeInteractionHandler:
                 new_expansion_state.add(path)
         
         self.controller._sync_data_from_ui()
+        self.controller.set_dirty(True)
         self.controller._refresh_ui_tree_and_paths()
         self.ui.set_expansion_state(new_expansion_state)
 
@@ -214,34 +247,41 @@ class TreeInteractionHandler:
             log.info(f"準備刪除 {len(items_to_process_for_delete)} 個項目...")
             self.controller.current_menu_data = [d for d in self.controller.current_menu_data if d not in items_to_process_for_delete]
         
+        self.controller.set_dirty(True)
         self.controller._refresh_ui_tree_and_paths()
 
     @preserve_ui_state
     def on_context_add_under(self, target_item: QtWidgets.QTreeWidgetItem):
         """
-        [修正版] 在指定的父路徑下準備新增一個項目，並記住插入點。
+        [最終修正版] 在指定的父路徑下準備新增一個項目，並正確進入新增模式。
         """
         target_data = target_item.data(0, QtCore.Qt.UserRole)
         parent_path = ""
 
-        if target_data: # 如果點擊的是功能項或分隔線
+        if target_data:
             parent_path = target_data.sub_menu_path
-            # [核心修正] 記住我們想要在哪個項目後面插入新項目
             self.controller.insertion_target_item_data = target_data
-        else: # 如果點擊的是資料夾
+        else:
             parent_path = self.ui.get_path_for_item(target_item)
-            # 在資料夾上點擊，代表添加到該資料夾末尾，無需指定特定插入點
             self.controller.insertion_target_item_data = None
         
         log.debug(f"準備在 '{parent_path}' 下新增項目。插入目標: {self.controller.insertion_target_item_data}")
         
-        # 清空並準備編輯器
-        self.ui.path_input.setCurrentText(parent_path)
+        # 1. 清空編輯器並預填路徑
         self.ui.label_input.clear()
+        self.ui.path_input.setCurrentText(parent_path)
         self.ui.manual_cmd_input.clear()
+        
+        # 2. 確保邏輯狀態已退出編輯模式
         self.controller.current_edit_item = None
-        self.controller._refresh_ui_tree_and_paths()
+        
+        # 3. 刷新編輯器面板，因為 Controller 已被修正，這會進入「新增模式」
         self.controller._refresh_editor_panel()
+        
+        # 4. [關鍵] 確保所有欄位都可用於輸入
+        self.ui.set_editor_fields_enabled(True)
+        
+        # 5. 將游標聚焦到標籤輸入框
         self.ui.label_input.setFocus()
 
     @preserve_ui_state
@@ -249,6 +289,13 @@ class TreeInteractionHandler:
         """
         在指定項目的下方新增一個分隔線。
         """
+        # --- [核心修正] ---
+        # 在執行任何可能重建UI的操作前，先強制退出編輯模式。
+        if self.controller.current_edit_item:
+            log.warning("新增分隔線操作中斷了進行中的編輯，已自動退出編輯模式。")
+            self.controller.editor_handler.on_cancel_edit()
+        # --- 修正結束 ---
+
         self.controller._sync_data_from_ui()
         
         separator_data = MenuItemData(
@@ -273,6 +320,7 @@ class TreeInteractionHandler:
         
         self.controller.current_menu_data.insert(insert_index, separator_data)
         
+        self.controller.set_dirty(True)
         self.controller._refresh_ui_tree_and_paths()
 
     def on_context_send_path(self, path: str):
@@ -295,6 +343,7 @@ class TreeInteractionHandler:
         log.debug(f"項目 '{item_data.menu_label}' 的 is_option_box 狀態由右鍵選單變更為: {new_state}")
 
         # 刷新UI以顯示變更
+        self.controller.set_dirty(True)
         self.controller._refresh_ui_tree_and_paths()
 
         # 如果程式正處於編輯模式，則刷新編輯器以反映變更

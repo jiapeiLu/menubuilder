@@ -55,6 +55,7 @@ class MenuBuilderController:
         self.current_config_name = None
         self.current_edit_item = None
         self.insertion_target_item_data = None
+        self.is_dirty = False
         self._signals_connected = False
         
         # 2. 創建 UI 實例，並將其賦值給 self.ui
@@ -109,6 +110,19 @@ class MenuBuilderController:
         """
         self.ui.populate_menu_tree(self.current_menu_data)
         self._update_path_combobox()
+
+
+    def set_dirty(self, dirty: bool):
+        """
+        設定檔案的 '髒' 狀態，並更新視窗標題以反映此狀態。
+        """
+        if self.is_dirty == dirty: # 如果狀態沒變，則不做任何事
+            return
+            
+        self.is_dirty = dirty
+        # 通知 UI 更新標題
+        self.file_io_handler._update_ui_title()
+        log.debug(f"檔案狀態已設為 Dirty: {self.is_dirty}")
 
 
     def _connect_signals(self):
@@ -324,55 +338,39 @@ class MenuBuilderController:
     @block_ui_signals('menu_tree_view')
     def _refresh_editor_panel(self):
         """
-        [增加視覺區隔] 根據 self.current_edit_item 的狀態，刷新右側編輯面板並管理拖曳及可用狀態。
+        [最終版] 只負責處理「進入」和「退出」編輯模式的 UI 狀態。
         """
         self.ui.clear_all_highlights()
-
-        # 檢查 cancel_edit_button 是否存在，以提供向下相容性
         cancel_button_exists = hasattr(self.ui, 'cancel_edit_button')
 
         if self.current_edit_item:
             # --- 進入編輯模式 ---
-            
-            # [核心修正] 禁用左側樹狀圖，強化視覺區隔，並禁止拖曳
             self.ui.menu_tree_view.setEnabled(False)
-            log.debug("已進入編輯模式，禁用樹狀圖。")
-            
-            # [UX 優化] 顯示取消按鈕
             if cancel_button_exists:
                 self.ui.cancel_edit_button.setVisible(True)
 
-            # 原有的高亮和欄位填充邏輯不變
             self.ui.set_item_highlight(self.current_edit_item, True)
             item_data = self.current_edit_item.data(0, QtCore.Qt.UserRole)
             if not item_data:
                 self.current_edit_item = None
-                # 在 finally 中會恢復信號，所以這裡可以直接 return
                 return
 
             self.ui.add_update_button.setText(tr('update_finish_editing_button'))
             self.ui.add_update_button.setStyleSheet("background-color: #446688;")
             self.ui.set_attributes_to_fields(item_data)
+            self.ui.set_editor_fields_enabled(True)
         else:
-            # --- 退出編輯模式 / 處於新增模式 ---
-
-            # [核心修正] 恢復左側樹狀圖的可用狀態
+            # --- 退出編輯模式 ---
+            # 退出編輯模式後，UI 狀態應由觸發者（例如 on_cancel_edit 或 on_tree_item_selection_changed）決定
+            # 此處只重設與編輯模式直接相關的 UI 元素。
             self.ui.menu_tree_view.setEnabled(True)
-            log.debug("已退出編輯模式，恢復樹狀圖。")
-            
-            # [UX 優化] 隱藏取消按鈕
             if cancel_button_exists:
                 self.ui.cancel_edit_button.setVisible(False)
             
             self.ui.add_update_button.setText(tr('add_to_structure_button'))
-            #highlight_color = QtGui.QColor("#446A3B")
-            self.ui.add_update_button.setStyleSheet("")
-            self.ui.python_radio.setChecked(True)
-            self.ui.label_input.clear()
-            self.ui.icon_input.clear()
-            self.ui.manual_cmd_input.clear()
-            #self.ui.input_tabs.setCurrentIndex(0)
-        
+            self.ui.add_update_button.setStyleSheet("")    
+
+
     def on_about(self):
         """
         顯示一個「關於」對話框。

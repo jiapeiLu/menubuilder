@@ -206,7 +206,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.right_splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self.right_splitter.addWidget(self.input_tabs)      # 將 Tab Widget 作為上半部分
         self.right_splitter.addWidget(self.attribute_box) # 將屬性編輯器作為下半部分
-        self.right_splitter.setSizes([420, 400]) 
+        self.right_splitter.setSizes([500, 200]) 
 
         update_edit_layout = QtWidgets.QHBoxLayout()
         self.add_update_button = QtWidgets.QPushButton()
@@ -226,13 +226,14 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         right_layout.addWidget(self.right_splitter)
         right_layout.addLayout(update_edit_layout)
-        right_layout.addWidget(self.save_button)
         right_layout.addWidget(self.build_menus_button)
+        right_layout.addWidget(self.save_button)
+
 
         splitter.addWidget(left_container_widget)
         splitter.addWidget(right_container_widget)
         
-        splitter.setSizes([350, 450]) 
+        splitter.setSizes([300, 450]) 
 
         menu_bar = self.menuBar()
         self.file_menu = menu_bar.addMenu(tr('file_menu'))
@@ -401,6 +402,39 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
 
         self.menu_tree_view.blockSignals(False)
     
+    def set_editor_fields_enabled(self, enabled: bool):
+        """
+        統一設定右側編輯器面板所有欄位的啟用/唯讀狀態，
+        並包含主操作按鈕 (Add/Update)。
+        """
+        # 文字輸入框使用 setReadOnly
+        self.label_input.setReadOnly(not enabled)
+        self.icon_input.setReadOnly(not enabled)
+        self.manual_cmd_input.setReadOnly(not enabled)
+
+        # QComboBox 和 按鈕 使用 setEnabled
+        self.path_input.setEnabled(enabled)
+        self.icon_browse_btn.setEnabled(enabled)
+        self.icon_buildin_btn.setEnabled(enabled)
+        self.test_run_button.setEnabled(enabled)
+        
+        # 指令類型單選鈕
+        self.python_radio.setEnabled(enabled)
+        self.mel_radio.setEnabled(enabled)
+
+        # [核心修正] 將主操作按鈕也納入控制
+        self.add_update_button.setEnabled(enabled)
+        
+        # 根據啟用狀態，給予視覺提示
+        style_sheet = ""
+        if not enabled:
+            style_sheet = "background-color: #2E2E2E;"
+        
+        self.label_input.setStyleSheet(style_sheet)
+        self.icon_input.setStyleSheet(style_sheet)
+        self.manual_cmd_input.setStyleSheet(style_sheet)
+
+
     def get_attributes_from_fields(self) -> MenuItemData:
         """
         從右側編輯器面板的所有輸入框中收集當前的值，並打包成一個新的
@@ -595,11 +629,20 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         menu.exec_(self.menu_tree_view.mapToGlobal(point))
 
     def update_tree_view_title(self, filename: str):
-        """更新左側樹狀視圖的標題以顯示當前檔名。"""
+        """更新左側樹狀視圖的標題以顯示當前檔名和'髒'狀態。"""
+        dirty_indicator = "*" if self.controller.is_dirty else ""
+        #    圓點字元是 ● (U+25CF)，顏色可以選一個醒目的紅色系
+        label_dirty_indicator = " <span style='color: #F44336;'>●</span>" if self.controller.is_dirty else ""
+
         if filename:
-            self.left_label.setText(tr('menu_config_title_with_file', filename=f"{filename}.json"))
+            title = tr('menu_config_title_with_file', filename=f"{filename}.json")
+            self.left_label.setText(f"{title}{label_dirty_indicator}")
+            # 更新主視窗標題
+            self.setWindowTitle(f"{tr('window_title')} v{__version__} - {filename}.json{dirty_indicator}")
         else:
-            self.left_label.setText(tr('menu_config_title'))
+            title = tr('menu_config_title')
+            self.left_label.setText(f"{title}{label_dirty_indicator}")
+            self.setWindowTitle(f"{tr('window_title')} v{__version__}")
 
     def update_icon_preview(self, path: str):
         """
@@ -687,6 +730,38 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         QtWidgets.QApplication.instance().removeEventFilter(self)
         log.info("事件過濾器已成功移除。")
 
+
+    def closeEvent(self, event: QtGui.QCloseEvent):
+        """
+        [新增] 覆寫 Qt 的關閉事件。
+        在視窗關閉前，檢查是否有未儲存的變更。
+        """
+        if self.controller.is_dirty:
+            reply = QtWidgets.QMessageBox.question(
+                self,
+                "Unsaved Changes", # 建議為這些文字也加入 language.py
+                "You have unsaved changes. Do you want to save them before exiting?",
+                QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard | QtWidgets.QMessageBox.Cancel,
+                QtWidgets.QMessageBox.Cancel # 預設按鈕
+            )
+
+            if reply == QtWidgets.QMessageBox.Save:
+                # 使用者選擇儲存
+                log.debug("使用者選擇儲存並離開。")
+                self.controller.file_io_handler.on_save_config_clicked()
+                event.accept() # 同意關閉
+            elif reply == QtWidgets.QMessageBox.Discard:
+                # 使用者選擇不儲存
+                log.debug("使用者選擇放棄變更並離開。")
+                event.accept() # 同意關閉
+            else: # reply == QtWidgets.QMessageBox.Cancel
+                # 使用者選擇取消
+                log.debug("使用者取消離開操作。")
+                event.ignore() # 忽略關閉事件，視窗將保持開啟
+        else:
+            # 如果沒有未儲存的變更，則正常關閉
+            event.accept()
+
         
 class IconBrowserDialog(QtWidgets.QDialog):
     """
@@ -767,6 +842,7 @@ class DraggableTreeWidget(QtWidgets.QTreeWidget):
     然後發出自訂信號 `items_dropped` 通知 Controller 進行資料處理。
     """
     drop_event_completed = QtCore.Signal(QtWidgets.QTreeWidgetItem, QtWidgets.QTreeWidgetItem, QtWidgets.QAbstractItemView.DropIndicatorPosition)
+    empty_space_clicked = QtCore.Signal()
 
     def __init__(self, parent=None):
         super(DraggableTreeWidget, self).__init__(parent)
@@ -775,6 +851,25 @@ class DraggableTreeWidget(QtWidgets.QTreeWidget):
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
+
+    # 覆寫 mousePressEvent 方法
+    def mousePressEvent(self, event: QtGui.QMouseEvent):
+        """
+        覆寫滑鼠點擊事件，以精準偵測是否點擊在空白區域。
+        """
+        # 檢查滑鼠點擊的座標位置下，是否有一個 item
+        item = self.itemAt(event.pos())
+        
+        # 如果 item 為 None，代表使用者點擊的是樹狀圖的空白處
+        if not item:
+            log.debug("DraggableTreeWidget: Detected click on empty space.")
+            # 發射我們自訂的「點擊空白處」信號
+            self.empty_space_clicked.emit()
+            # 清除選取，確保視覺上的一致性
+            self.clearSelection()
+        
+        # 最後，務必呼叫父類別的原始方法，確保點擊、選取等預設功能依然正常運作
+        super(DraggableTreeWidget, self).mousePressEvent(event)
 
     def dropEvent(self, event: QtGui.QDropEvent):
         """
