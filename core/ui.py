@@ -229,7 +229,6 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         right_layout.addWidget(self.build_menus_button)
         right_layout.addWidget(self.save_button)
 
-
         splitter.addWidget(left_container_widget)
         splitter.addWidget(right_container_widget)
         
@@ -243,9 +242,12 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.save_action = self.file_menu.addAction(tr('save_action'))
         self.save_as_action = self.file_menu.addAction(tr('save_as_action'))
         self.file_menu.addSeparator()
+
+        self.open_config_folder_action = self.file_menu.addAction(tr('open_config_folder_action')) 
+        self.file_menu.addSeparator() # 在它後面再加一個分隔線
+
         self.import_from_shelf_action = self.file_menu.addAction(tr('import_from_shelf_action'))
         self.exit_action = self.file_menu.addAction(tr('exit_action'))
-
 
         self.settings_menu = menu_bar.addMenu(tr("settings_menu"))
 
@@ -272,6 +274,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self._retranslation_list.append((self.merge_action.setText, "merge_action", {}))
         self._retranslation_list.append((self.save_action.setText, "save_action", {}))
         self._retranslation_list.append((self.save_as_action.setText, "save_as_action", {}))
+        self._retranslation_list.append((self.open_config_folder_action.setText, "open_config_folder_action", {}))
         self._retranslation_list.append((self.import_from_shelf_action.setText, "import_from_shelf_action", {}))
         self._retranslation_list.append((self.exit_action.setText, "exit_action", {}))
         

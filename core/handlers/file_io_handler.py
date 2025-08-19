@@ -108,6 +108,7 @@ class FileIOHandler:
         self.controller.current_config_name = config_name
         self.data_handler.save_menu_config(config_name, self.controller.current_menu_data)
         self._update_ui_title()
+        self.controller.settings_handler.refresh_default_menu_list()
         self.controller.set_dirty(False)
 
     def _perform_shelf_import(self, shelf_names: List[str]) -> List[MenuItemData]:

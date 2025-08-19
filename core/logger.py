@@ -10,7 +10,7 @@ Menubuilder - Logger Setup Module
 """
 import logging
 import os
-from .setting_reader import current_setting # 載入setting
+from . import setting_reader # 載入setting
 from maya import cmds
 
 # 定義日誌的格式
@@ -67,4 +67,4 @@ def setup_logger(setting):
 
 
 # 創建一個全域的logger實例，讓其他模組導入
-log = setup_logger(current_setting)
+log = setup_logger(setting_reader.settings_manager.current_setting)

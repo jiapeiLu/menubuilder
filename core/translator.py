@@ -1,7 +1,5 @@
 # menubuilder/core/translator.py
 
-from .languagelib.language_manager import LanguageManager
-
 # 建立一個全域的、唯一的翻譯器實例
 # 所有其他模組都將使用這同一個實例
 #tr_instance = LanguageManager()

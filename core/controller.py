@@ -15,12 +15,14 @@ import webbrowser
 from PySide2 import QtWidgets, QtCore
 from maya import cmds, mel
 import os
-from pathlib import Path
+import subprocess
+import sys
+
 
 from .. import __version__, __author__
 
 from .logger import log  # 從我們建立的logger模組導入已經配置好的log實例
-from .setting_reader import current_setting
+from . import setting_reader
 from .ui import MenuBuilderUI
 from .script_parser import ScriptParser
 from .menu_generator import MenuGenerator
@@ -144,6 +146,7 @@ class MenuBuilderController:
         self.file_io_handler.connect_signals()
         self.settings_handler.connect_signals()
 
+        self.ui.open_config_folder_action.triggered.connect(self.on_open_config_folder)
         self.ui.about_action.triggered.connect(self.on_about)
         self.ui.github_action.triggered.connect(self.on_view_on_github)
 
@@ -152,7 +155,8 @@ class MenuBuilderController:
         
     def _load_initial_data(self):
         """載入設定中指定的預設菜單設定檔。"""
-        default_config = current_setting.get("menuitems")
+        # 從管理器獲取設定
+        default_config = setting_reader.settings_manager.current_setting.get("menuitems")
         self.current_config_name = default_config
         if not default_config:
             log.warning("在 setting.json 中未指定預設的 'menuitems'。")
@@ -162,9 +166,8 @@ class MenuBuilderController:
         self.current_menu_data = self.data_handler.load_menu_config(default_config)
         
         if self.current_menu_data:
-            # [重構] 呼叫新的集中刷新函式
+            # 呼叫新的集中刷新函式
             self._refresh_ui_tree_and_paths()
-            # [核心修正] 確保這一行在 populate_menu_tree 之後被呼叫
             self.ui.auto_expand_single_root()
             
         self.file_io_handler._update_ui_title()
@@ -425,3 +428,29 @@ class MenuBuilderController:
             return None
         return None
     
+    def on_open_config_folder(self):
+        """
+        [新增] 在系統的檔案總管中開啟 menuitems 設定檔所在的資料夾。
+        此方法為跨平台。
+        """
+        folder_path = self.data_handler.MENUITEMS_DIR
+        
+        if not folder_path.exists():
+            log.error(f"設定檔資料夾不存在: {folder_path}")
+            QtWidgets.QMessageBox.warning(self.ui, "Error", f"Folder not found:\n{folder_path}")
+            return
+
+        log.info(f"正在開啟資料夾: {folder_path}")
+        try:
+            if sys.platform == "win32":
+                # Windows
+                subprocess.run(['explorer', str(folder_path)])
+            elif sys.platform == "darwin":
+                # macOS
+                subprocess.run(['open', str(folder_path)])
+            else:
+                # Linux
+                subprocess.run(['xdg-open', str(folder_path)])
+        except Exception as e:
+            log.error(f"無法開啟資料夾: {e}")
+            QtWidgets.QMessageBox.critical(self.ui, "Error", f"Could not open the folder:\n{e}")

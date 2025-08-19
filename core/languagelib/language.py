@@ -173,6 +173,11 @@ LANG = {
         'zh_tw': '另存新檔(&A)...',
         'ja_jp': '名前を付けて保存(&A)...'
     },
+    'open_config_folder_action':{
+        "zh_tw": "開啟設定檔資料夾",
+        "en_us": "Open Config Folder",
+        "ja_jp": "設定フォルダーを開く"
+    },
     'exit_action': {
         'en_us': 'E&xit',
         'zh_tw': '離開(&X)',

@@ -11,12 +11,14 @@ class LanguageManager:
         importlib.reload(setting_reader)
         importlib.reload(language)
         
-        self._current_lang = setting_reader.current_setting.get('language', 'en_us')
+        self._current_lang = setting_reader.settings_manager.current_setting.get('language', 'en_us')
         self._languages = language.LANG
 
     def set_language(self, lang):
-        self._current_lang = lang
+        self._languages = lang
 
+    def set_current_lang(self, current_lang):
+        self._current_lang = current_lang
 
     def tr(self, key: str, **kwargs) -> str:
         """
@@ -26,7 +28,6 @@ class LanguageManager:
         
         # 嘗試獲取英文原文作為第二層預設值
         english_text = self._languages.get(key, {}).get('en_us', key)
-
         translation = self._languages.get(key, {}).get(self._current_lang, english_text)
         
         if kwargs:
@@ -40,7 +41,7 @@ if __name__ == "__main__":
         'farewell': {'en_us': 'Goodbye!', 'fr_fr': 'Au revoir!'}
     }
     
-    manager = LanguageManager(lang='en_us', languages=languages)
+    manager = LanguageManager()
     print(manager.tr('greeting', name='Alice'))  # Output: Hello, Alice!
     
     manager.set_language('fr_fr')

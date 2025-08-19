@@ -91,10 +91,14 @@ def reload_all():
     try:
         from .core.translator import tr_instance
         from .core.languagelib import language
+        from .core import setting_reader
 
         # 直接更新 LanguageManager 實例的內部屬性
-        tr_instance._languages = language.LANG
+        tr_instance.set_language(language.LANG) 
         log.info("語言實例的資料已成功更新。")
+
+        setting_reader.settings_manager.reload()
+        log.info("設定管理器的資料已成功從 setting.json 重新載入。")
 
     except Exception as e:
         log.error(f"手動更新語言資料時失敗: {e}", exc_info=True)
