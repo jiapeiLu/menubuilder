@@ -20,12 +20,12 @@ def build_menus_on_startup():
     try:
         # 從 menubuilder 的核心模組中導入必要的元件
         # 使用相對導入路徑，確保它在作為 menubuilder 套件一部分時能正常工作
-        from .core.setting_reader import current_setting
+        from .core.setting_reader import settings_manager
         from .core.handlers.data_handler import DataHandler
         from .core.menu_generator import MenuGenerator
 
         # 1. 讀取設定，找出預設要載入的菜單設定檔
-        default_config = current_setting.get("menuitems")
+        default_config = settings_manager.current_setting.get("menuitems")
         if not default_config:
             cmds.warning("[Menubuilder] No default menuitem specified in setting.json. Aborting menu generation.")
             return
