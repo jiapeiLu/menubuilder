@@ -384,8 +384,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
             menu_qitem = QtWidgets.QTreeWidgetItem(parent_ui_item, [display_label])
             menu_qitem.setData(0, QtCore.Qt.UserRole, item_data)
 
+            base_flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsDragEnabled
+            menu_qitem.setFlags(base_flags)
+
             if item_data.is_divider:
-                flags = QtCore.Qt.ItemIsEnabled
+                flags = QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable
                 menu_qitem.setFlags(flags)
                 menu_qitem.setForeground(0, QtGui.QColor("#666666"))
             elif item_data.is_option_box:

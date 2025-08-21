@@ -49,7 +49,7 @@ class TreeInteractionHandler:
         self.ui.function_list.clear()
         self.ui.current_script_path_label.clear()
         self.ui.python_radio.setChecked(True)
-        self.ui.input_tabs.setCurrentIndex(0)
+        #self.ui.input_tabs.setCurrentIndex(1)
 
         # 2. 重設 Controller 的編輯狀態
         self.controller.current_edit_item = None
