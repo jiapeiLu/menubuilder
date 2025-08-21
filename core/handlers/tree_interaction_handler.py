@@ -181,74 +181,80 @@ class TreeInteractionHandler:
     @preserve_ui_state
     def on_context_delete(self, item: QtWidgets.QTreeWidgetItem):
         """
-        [增加父物件判斷] 處理刪除操作，能同時刪除父物件與其選項框。
+        [UX 優化版] 處理右鍵選單中的刪除請求。
+        如果刪除的是分隔線，則直接刪除，不顯示確認對話框。
         """
-        # 在執行任何可能重建UI的操作前，先檢查是否處於編輯模式。
-        # 如果是，則強制退出編輯模式，以避免產生指向已刪除物件的「殭屍參考」。
-        if self.controller.current_edit_item:
-            log.warning("操作中斷了進行中的編輯，已自動退出編輯模式。")
-            self.controller.on_cancel_edit()
-
-        if not isinstance(item, QtWidgets.QTreeWidgetItem):
-            return
-
         item_data = item.data(0, QtCore.Qt.UserRole)
-        
-        is_parent_item = False
-        option_box_data_to_delete = None
-        if item_data and not item_data.is_option_box:
-            try:
-                current_index = self.controller.current_menu_data.index(item_data)
-                if (current_index + 1) < len(self.controller.current_menu_data):
-                    item_after = self.controller.current_menu_data[current_index + 1]
-                    if item_after.is_option_box:
-                        is_parent_item = True
-                        option_box_data_to_delete = item_after
-            except ValueError:
-                pass
-        
-        is_folder = item.childCount() > 0 and not item_data
-        
-        confirm_message = ""
-        items_to_process_for_delete = []
 
-        if is_folder:
-            item_path = self.ui.get_path_for_item(item)
-            confirm_message = tr('controller_confirm_delete_folder', path=item_path)
-            # 查找所有需要刪除的子項目
-            items_to_process_for_delete = [
-                data for data in self.controller.current_menu_data 
-                if data.sub_menu_path == item_path or data.sub_menu_path.startswith(item_path + '/')
-            ]
-        else: # 功能項、選項框、父物件
-            if is_parent_item:
-                confirm_message = tr('controller_confirm_delete_parent_with_option_box', name=item.text(0))
-                items_to_process_for_delete.append(item_data)
-                if option_box_data_to_delete:
-                    items_to_process_for_delete.append(option_box_data_to_delete)
-            elif item_data:
-                confirm_message = tr('controller_confirm_delete_item', name=item.text(0))
-                items_to_process_for_delete.append(item_data)
-        
-        if not items_to_process_for_delete and not is_folder:
-             # 處理刪除一個沒有 item_data 的 QTreeWidgetItem (例如一個空的資料夾)
-             # 我們需要從 item_map 中移除它，但 data list 中沒有東西要移除
-             pass
+        # --- [核心修改] 判斷是否為分隔線 ---
+        if item_data and item_data.is_divider:
+            # 如果是分隔線，直接執行刪除邏輯
+            log.info(f"正在直接刪除分隔線...")
+            self.controller.current_menu_data.remove(item_data)
+            self.controller._refresh_ui_tree_and_paths()
+            self.controller.set_dirty(True)
+            return # 完成操作，提前返回
 
-        if confirm_message:
-            reply = QtWidgets.QMessageBox.question(
-                self.ui, tr('controller_confirm_delete_title'), confirm_message,
-                QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No
-            )
-            if reply == QtWidgets.QMessageBox.No:
-                return
+        # --- 對於所有其他項目，保持原有的確認流程 ---
+        # 準備提示訊息
+        item_text = item.text(0)
+        title = tr('context_delete_confirm_title')
+        # 根據項目類型（資料夾或功能項）顯示不同的訊息
+        if item_data:
+            # 這是一個功能項
+            message = tr('context_delete_confirm_body_item', item_name=item_text)
+        else:
+            # 這是一個資料夾
+            message = tr('context_delete_confirm_body_folder', folder_name=item_text)
 
-        if items_to_process_for_delete:
-            log.info(f"準備刪除 {len(items_to_process_for_delete)} 個項目...")
-            self.controller.current_menu_data = [d for d in self.controller.current_menu_data if d not in items_to_process_for_delete]
-        
-        self.controller.set_dirty(True)
-        self.controller._refresh_ui_tree_and_paths()
+        # 顯示確認對話框
+        reply = QtWidgets.QMessageBox.question(
+            self.ui,
+            title,
+            message,
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No # 預設按鈕為 "No"
+        )
+
+        if reply == QtWidgets.QMessageBox.Yes:
+            log.info(f"使用者確認刪除項目: {item_text}")
+            items_to_remove = []
+            
+            # 判斷是刪除資料夾還是單一項目
+            if not item_data: 
+                # --- 刪除資料夾及其所有子項目 ---
+                # 使用遞迴或迭代方式收集所有子項目的 data
+                self._collect_children_data(item, items_to_remove)
+            else:
+                # --- 刪除單一功能項 ---
+                items_to_remove.append(item_data)
+
+                # 檢查是否為父物件，如果是，則一併刪除其 Option Box
+                option_box_data = self.controller._get_option_box_for_parent(item_data, self.controller.current_menu_data)
+                if option_box_data:
+                    items_to_remove.append(option_box_data)
+            
+            # 從主資料列表中移除所有收集到的項目
+            if items_to_remove:
+                self.controller.current_menu_data = [
+                    d for d in self.controller.current_menu_data if d not in items_to_remove
+                ]
+                self.controller._refresh_ui_tree_and_paths()
+                self.controller.set_dirty(True)
+
+    def _collect_children_data(self, parent_item: QtWidgets.QTreeWidgetItem, collection_list: list):
+        """
+        遞迴輔助函式：收集一個樹狀項目及其所有子項目關聯的 MenuItemData。
+        """
+        for i in range(parent_item.childCount()):
+            child = parent_item.child(i)
+            child_data = child.data(0, QtCore.Qt.UserRole)
+            if child_data:
+                collection_list.append(child_data)
+            
+            # 如果子項目還有子項目（即子資料夾），則繼續遞迴
+            if child.childCount() > 0:
+                self._collect_children_data(child, collection_list)
 
     @preserve_ui_state
     def on_context_add_under(self, target_item: QtWidgets.QTreeWidgetItem):
