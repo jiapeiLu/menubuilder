@@ -437,12 +437,11 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         if not enabled:
             QLineEdit_style_sheet = "QLineEdit { color: gray; }"
             QTextEdit_style_sheet = "QTextEdit { color: gray; }"
-            
         
         self.label_input.setStyleSheet(QLineEdit_style_sheet)
         self.icon_input.setStyleSheet(QLineEdit_style_sheet)
         self.manual_cmd_input.setStyleSheet(QTextEdit_style_sheet)
-        #self.manual_cmd_input.setStyleSheet("QTextEdit { color: gray; }")
+
 
 
     def get_attributes_from_fields(self) -> MenuItemData:
@@ -732,6 +731,7 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         
         # 對於所有其他不關心的事件，把它們交還給 Qt 繼續進行預設的處理
         return super(MenuBuilderUI, self).eventFilter(watched_object, event)
+    
     def clean_up(self):
         """
         在視窗關閉前執行必要的清理工作，尤其是移除全域事件過濾器。
@@ -749,8 +749,8 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         if self.controller.is_dirty:
             reply = QtWidgets.QMessageBox.question(
                 self,
-                "Unsaved Changes", # 建議為這些文字也加入 language.py
-                "You have unsaved changes. Do you want to save them before exiting?",
+                tr("unsaved_changes_title"), # 建議為這些文字也加入 language.py
+                tr("unsaved_changes_body"),
                 QtWidgets.QMessageBox.Save | QtWidgets.QMessageBox.Discard | QtWidgets.QMessageBox.Cancel,
                 QtWidgets.QMessageBox.Cancel # 預設按鈕
             )

@@ -33,7 +33,6 @@ def reload_all():
         try:
             log.info("正在清理舊的 Menubuilder UI 實例...")
             instance.ui.clean_up() 
-            instance.ui.close()
             instance.ui.deleteLater()
         except Exception as e:
             log.error(f"清理舊UI時發生錯誤: {e}")

@@ -36,17 +36,12 @@ class TreeInteractionHandler:
         log.debug("TreeInteractionHandler signals connected.")
         
     
-    def _enter_add_mode(self):
-        """
-        [最終版] 進入「新增模式」。清空所有欄位，並確保它們都處於可編輯狀態。
-        """
-        log.debug("Entering Add Mode...")
+    def _clean_edit_field(self):
         # 1. 清空所有欄位
         self.ui.label_input.clear()
         self.ui.path_input.setCurrentText("")
         self.ui.icon_input.clear()
         self.ui.manual_cmd_input.clear()
-        #self.ui.function_list.clear()
         self.ui.current_script_path_label.clear()
         self.ui.python_radio.setChecked(True)
         #self.ui.input_tabs.setCurrentIndex(1)
@@ -54,6 +49,14 @@ class TreeInteractionHandler:
         # 2. 重設 Controller 的編輯狀態
         self.controller.current_edit_item = None
         self.controller.insertion_target_item_data = None
+
+    def _enter_add_mode(self):
+        """
+        [最終版] 進入「新增模式」。清空所有欄位，並確保它們都處於可編輯狀態。
+        """
+        log.debug("Entering Add Mode...")
+        # 1. 清空所有欄位
+        self._clean_edit_field()
 
         # 3. 直接設定 UI 狀態
         self.ui.add_update_button.setText(tr('add_to_structure_button'))
@@ -240,6 +243,7 @@ class TreeInteractionHandler:
                 self.controller.current_menu_data = [
                     d for d in self.controller.current_menu_data if d not in items_to_remove
                 ]
+                self._clean_edit_field()
                 self.controller._refresh_ui_tree_and_paths()
                 self.controller.set_dirty(True)
 

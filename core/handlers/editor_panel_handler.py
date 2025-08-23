@@ -37,7 +37,7 @@ class EditorPanelHandler:
 
     def on_browse_script_clicked(self):
         """當瀏覽按鈕被點擊時觸發。"""
-        start_dir = ""
+        start_dir = cmds.internalVar(userScriptDir = True)
         if self.controller.current_selected_script_path:
             start_dir = os.path.dirname(self.controller.current_selected_script_path)
 

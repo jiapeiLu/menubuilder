@@ -144,7 +144,16 @@ LANG = {
         'zh_tw': '✨ 在Maya中產生/刷新菜單 (Build Menus)',
         'ja_jp': '✨ Mayaでメニューを構築/更新'
     },
-
+    'unsaved_changes_title': {
+        'en_us': 'Unsaved Changes',
+        'zh_tw': '未儲存的變更',
+        'ja_jp': '未保存の変更'
+    },
+    'unsaved_changes_body': {
+        'en_us': 'You have unsaved changes. Do you want to save them before exiting?',
+        'zh_tw': '您有未儲存的變更。要在離開前儲存嗎？',
+        'ja_jp': '未保存の変更があります。終了する前に保存しますか？'
+    },
     # ======================================================================
     # UI - Menu Bar (ui.py)
     # ======================================================================
@@ -267,6 +276,21 @@ LANG = {
         'en_us': 'Delete Item and □ Option Box...',
         'zh_tw': '刪除主項與 □ 選項框...',
         'ja_jp': '項目と □ オプションボックスを削除...'
+    },
+    'context_delete_confirm_title': {
+        'en_us': 'Confirm Deletion',
+        'zh_tw': '刪除確認',
+        'ja_jp': '削除の確認'
+    },
+    'context_delete_confirm_body_item': {
+        'en_us': 'Confirm deleting the menu item',
+        'zh_tw': '確認刪除菜單項目',
+        'ja_jp': 'メニュー項目の削除を確認'
+    },
+    'context_delete_confirm_body_folder': {
+        'en_us': 'Confirm deleting the entire folder',
+        'zh_tw': '確認刪除整個資料夾項目',
+        'ja_jp': 'フォルダー全体の削除を確認'
     },
     'context_add_root': {
         'en_us': 'Add Root Item...',
