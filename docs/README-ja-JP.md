@@ -56,6 +56,7 @@
 
 1.  **準備:**
     * `menubuilder` エディタを使用して、必要なメニュー設定を `.json` ファイル（例: `project_menu.json`）として保存します。
+     <img src="./resources/ExtractAll.png"  width="80%"/>
     * `settings.json` を開き、`"menuitems"` の値がチームでデフォルトで読み込みたいファイル名になっていることを確認します（例: `"menuitems": "project_menu"`）。
     * `userSetup.py` ファイルを見つけるか、作成します。場所：
         `C:/Users/<ユーザー名>/Documents/maya/scripts/userSetup.py`
@@ -76,6 +77,7 @@
         cmds.warning(f"[Menubuilder Startup] Failed to load menus: {e}")
     # --- End Menubuilder ---
     ```
+    <img src="./resources/AddToUserSetup.png"  width="80%"/>
 
 2.  **完了:** ユーザーが次にMayaを起動すると、設定したメニューが自動的に生成されます。
 

@@ -36,6 +36,7 @@
 這個流程用於創建和編輯菜單設定檔。
 
 1.  **放置專案:** 下載 `menubuilder` 後移除後綴 `-main`, 將 `menubuilder` 整個資料夾放置到Maya的python路徑下。(如: `C:/Users/<使用者名稱>/Documents/maya/scripts`)
+       <img src="./resources/ExtractAll.png"  width="80%"/>
 2.  **啟動與開發:** 在 Python Script Editor 中執行以下指令：
     ```python
     import menubuilder
@@ -76,8 +77,9 @@
         cmds.warning(f"[Menubuilder Startup] Failed to load menus: {e}")
     # --- End Menubuilder ---
     ```
+    <img src="./resources/AddToUserSetup.png"  width="80%"/>
 
-2.  **完成:** 使用者下次啟動 Maya 時，就會自動生成您配置好的菜單。
+1.  **完成:** 使用者下次啟動 Maya 時，就會自動生成您配置好的菜單。
 
 ## Menubuilder 框架指南
 
@@ -91,6 +93,8 @@ menubuilder/
 ├── settings.json         # 工具的全域設定
 │
 ├── core/                 # 核心功能模組
+│   ├── handlers/         # 輔助模組
+│   ├── languagelib/      # 語言模組
 │   ├── controller.py     # 控制器 (核心邏輯)
 │   ├── ui.py             # UI 介面定義
 │   ├── data_handler.py   # 資料處理 (讀寫 .json)
@@ -117,7 +121,7 @@ menubuilder/
 
 **Setting**
 
-* 語言切換
+* 語言切換，預設英文 (支援: 英/ 中/ 日)
 * 日誌模式
 * 預設菜單
 

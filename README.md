@@ -57,6 +57,7 @@ Deploy a configured menu to be generated automatically when Maya starts.
 
 1.  **Preparation:**
     * Use the `menubuilder` editor to save your desired menu configuration as a `.json` file (e.g., `project_menu.json`).
+     <img src="./docs/resources/ExtractAll.png"  width="80%"/>
     * Open `settings.json` and ensure the value of `"menuitems"` is the filename you want the team to load by default (e.g., `"menuitems": "project_menu"`).
     * Find or create the `userSetup.py` file, located at:
         `C:/Users/<Username>/Documents/maya/scripts/userSetup.py`
@@ -77,6 +78,7 @@ Deploy a configured menu to be generated automatically when Maya starts.
         cmds.warning(f"[Menubuilder Startup] Failed to load menus: {e}")
     # --- End Menubuilder ---
     ```
+    <img src="./docs/resources/AddToUserSetup.png"  width="80%"/>
 
 2.  **Completion:** The next time users start Maya, the menu you configured will be generated automatically.
 
