@@ -432,13 +432,17 @@ class MenuBuilderUI(QtWidgets.QMainWindow):
         self.add_update_button.setEnabled(enabled)
         
         # 根據啟用狀態，給予視覺提示
-        style_sheet = ""
+        QLineEdit_style_sheet = ""
+        QTextEdit_style_sheet = ""
         if not enabled:
-            style_sheet = "background-color: #2E2E2E;"
+            QLineEdit_style_sheet = "QLineEdit { color: gray; }"
+            QTextEdit_style_sheet = "QTextEdit { color: gray; }"
+            
         
-        self.label_input.setStyleSheet(style_sheet)
-        self.icon_input.setStyleSheet(style_sheet)
-        self.manual_cmd_input.setStyleSheet(style_sheet)
+        self.label_input.setStyleSheet(QLineEdit_style_sheet)
+        self.icon_input.setStyleSheet(QLineEdit_style_sheet)
+        self.manual_cmd_input.setStyleSheet(QTextEdit_style_sheet)
+        #self.manual_cmd_input.setStyleSheet("QTextEdit { color: gray; }")
 
 
     def get_attributes_from_fields(self) -> MenuItemData:

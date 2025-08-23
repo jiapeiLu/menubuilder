@@ -1,6 +1,6 @@
 # menubuilder/core/handlers/tree_interaction_handler.py
 
-from PySide2 import QtWidgets, QtCore
+from PySide2 import QtWidgets, QtCore, QtGui
 from ..dto import MenuItemData
 from ..decorators import preserve_ui_state, block_ui_signals
 from ..logger import log
@@ -46,7 +46,7 @@ class TreeInteractionHandler:
         self.ui.path_input.setCurrentText("")
         self.ui.icon_input.clear()
         self.ui.manual_cmd_input.clear()
-        self.ui.function_list.clear()
+        #self.ui.function_list.clear()
         self.ui.current_script_path_label.clear()
         self.ui.python_radio.setChecked(True)
         #self.ui.input_tabs.setCurrentIndex(1)
@@ -66,6 +66,14 @@ class TreeInteractionHandler:
         # 5. 將游標聚焦，方便輸入
         self.ui.label_input.setFocus()
 
+    def _enter_preview_mode(self,item_data = None):
+
+        if item_data:
+            log.debug(f"Item '{item_data.menu_label}' selected. Entering Preview Mode.")
+            self.ui.set_attributes_to_fields(item_data)
+        
+        self.ui.set_editor_fields_enabled(False)
+        self.ui.add_update_button.setText(tr('add_to_structure_button'))
 
     def on_tree_item_selection_changed(self, current: QtWidgets.QTreeWidgetItem, previous: QtWidgets.QTreeWidgetItem):
         """
@@ -81,17 +89,10 @@ class TreeInteractionHandler:
             return
 
         item_data = current.data(0, QtCore.Qt.UserRole)
-
-        # 如果選中的是資料夾或分隔線，進入新增模式
-        if not item_data or item_data.is_divider:
-            self._enter_add_mode()
-            return
             
-        # 只有選中功能項時，才進入預覽模式
-        log.debug(f"Item '{item_data.menu_label}' selected. Entering Preview Mode.")
-        self.ui.set_attributes_to_fields(item_data)
-        self.ui.set_editor_fields_enabled(False)
-        self.ui.add_update_button.setText(tr('add_to_structure_button'))
+        # 設定預覽模式
+        self._enter_preview_mode( item_data )
+
 
     def on_tree_item_double_clicked(self, item, column):
         """當項目被雙擊時，進入「編輯模式」。"""
