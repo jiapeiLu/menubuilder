@@ -183,9 +183,9 @@ LANG = {
         'ja_jp': '名前を付けて保存(&A)...'
     },
     'open_config_folder_action':{
-        "zh_tw": "開啟設定檔資料夾",
-        "en_us": "Open Config Folder",
-        "ja_jp": "設定フォルダーを開く"
+        "zh_tw": "開啟菜單設定檔資料夾",
+        "en_us": "Open Menuitems Folder",
+        "ja_jp": "メニュー設定フォルダーを開く"
     },
     'exit_action': {
         'en_us': 'E&xit',
